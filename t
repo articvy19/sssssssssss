@@ -247,6 +247,8 @@ getgenv().targ = nil
 getgenv().lasttarrget = nil
 getgenv().checked = {}
 getgenv().pl = p:GetPlayers()
+getgenv().LastTargetHealth = nil
+getgenv().LastDamageTime = tick()
 wait(1)
 
 --- Funções principais ---
@@ -714,24 +716,6 @@ function SkipPlayer()
     target()
 end
 
--- Função inspirada no hj.lua: verifica se o HP do alvo mudou em "duration" segundos
-local function checkHealthChangeTarget(character, duration)
-    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return false end
-
-    local initialHealth = humanoid.Health
-    local startTime = os.time()
-
-    while os.time() - startTime < duration do
-        if not humanoid.Parent or humanoid.Health ~= initialHealth then
-            return true -- HP mudou (dano ou cura)
-        end
-        task.wait(1)
-    end
-
-    return false -- HP ficou parado todo o período
-end
-
 function target() 
     pcall(function()
         d = math.huge
@@ -759,21 +743,59 @@ function target()
         if p == nil then hopserver = true end 
         getgenv().targ = p
 
-        -- Quando escolhe um novo alvo, inicia um check: se o HP dele
-        -- não mudar em X segundos, pula para o próximo inimigo
-        if getgenv().targ and getgenv().targ.Character then
-            local thisTarget = getgenv().targ
-            spawn(function()
-                -- espera, por exemplo, 7 segundos e vê se o HP mudou
-                local changed = checkHealthChangeTarget(thisTarget.Character, 7)
-                if not changed and getgenv().targ == thisTarget then
-                    print("[Auto Bounty] Alvo sem mudança de HP, trocando de inimigo...")
-                    SkipPlayer()
-                end
-            end)
+        -- Quando escolhe um novo alvo, inicia controle básico de HP
+        if getgenv().targ and getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("Humanoid") then
+            getgenv().LastTargetHealth = getgenv().targ.Character.Humanoid.Health
+            getgenv().LastDamageTime = tick()
+        else
+            getgenv().LastTargetHealth = nil
         end
     end)
 end
+
+-- Monitor global: se estivermos PERTO do alvo e o HP dele não mudar
+-- por alguns segundos, pula para o próximo inimigo
+spawn(function()
+    while task.wait(1) do
+        pcall(function()
+            local t = getgenv().targ
+            local me = game.Players.LocalPlayer
+            if t and t.Character and t.Character:FindFirstChild("Humanoid")
+               and me.Character and me.Character:FindFirstChild("HumanoidRootPart")
+               and t.Character:FindFirstChild("HumanoidRootPart") then
+
+                local currentHealth = t.Character.Humanoid.Health
+                local distance = (t.Character.HumanoidRootPart.Position - me.Character.HumanoidRootPart.Position).Magnitude
+
+                -- Só conta "sem dano" quando estamos relativamente perto do alvo
+                if distance > 80 then
+                    getgenv().LastTargetHealth = currentHealth
+                    getgenv().LastDamageTime = tick()
+                    return
+                end
+
+                if getgenv().LastTargetHealth == nil then
+                    getgenv().LastTargetHealth = currentHealth
+                    getgenv().LastDamageTime = tick()
+                else
+                    if math.abs(currentHealth - getgenv().LastTargetHealth) > 1 then
+                        -- Qualquer mudança de HP reseta o timer
+                        getgenv().LastTargetHealth = currentHealth
+                        getgenv().LastDamageTime = tick()
+                    else
+                        -- HP parado e estamos perto: se passou muito tempo, troca alvo
+                        if tick() - (getgenv().LastDamageTime or 0) > 7 then
+                            print("[Auto Bounty] Sem dano recente no alvo (perto), trocando de inimigo...")
+                            SkipPlayer()
+                        end
+                    end
+                end
+            else
+                getgenv().LastTargetHealth = nil
+            end
+        end)
+    end
+end)
 
 -- Sistema de armas
 gunmethod = getgenv().Setting.Gun.GunMode
