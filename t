@@ -1104,8 +1104,13 @@ spawn(function()
             if getgenv().targ and getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("HumanoidRootPart") and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
                 if game.Players.LocalPlayer.Character:FindFirstChild("Humanoid").Health > getgenv().Setting.SafeHealth.Health then
                     if getgenv().targ.Character.Humanoid.Health > 0 then
-                        -- Movimento substituído pelo estilo do hj.lua (TweenService2/AttackNearestPlayer adaptado)
-                        MoveToTargetHJ(getgenv().targ)
+						-- Movimento usando sistema completo do tween.lua (CheckNearestTeleporter + topos)
+						local enemyHRP = getgenv().targ.Character:FindFirstChild("HumanoidRootPart")
+						if enemyHRP then
+							-- Posição um pouco acima/na frente do inimigo (voando até ele)
+							local dest = enemyHRP.CFrame * CFrame.new(0, 5.4, 5.5)
+							topos(dest)
+						end
                     else
                         print("[Auto Bounty] Alvo morreu, procurando novo...")
                         SkipPlayer()
