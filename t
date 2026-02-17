@@ -152,6 +152,24 @@ local TeleportService = game:GetService("TeleportService")
 local player = Players.LocalPlayer
 _G.Seriality = true
 
+local function CanHopServer()
+    local gui = game.Players.LocalPlayer:FindFirstChild("PlayerGui")
+    if gui then
+        local main = gui:FindFirstChild("Main")
+        if main and main:FindFirstChild("InCombat") then
+            local inCombat = main.InCombat
+            if inCombat.Visible then
+                local txt = string.lower(inCombat.Text or "")
+                if string.find(txt, "risk") then
+                    -- Quando está com Bounty Risk na tela, não pode hopar
+                    return false
+                end
+            end
+        end
+    end
+    return true
+end
+
 local function HopServer()
     pcall(function()
         local placeId = game.PlaceId
@@ -280,6 +298,7 @@ getgenv().pl = p:GetPlayers()
 getgenv().LastTargetHealth = nil
 getgenv().LastDamageTime = tick()
 getgenv().NoTargetTime = nil
+getgenv().DashEnabled = true
 wait(1)
 
 --- Funções principais ---
@@ -494,15 +513,17 @@ function topos(Tween_Pos)
                     {CFrame = targetCFrameWithDefualtY}
                 )
                 tween:Play()
-                -- Enquanto estiver usando o tween, ficar apertando Q para dash
+                -- Enquanto estiver usando o tween, ficar apertando Q para dash (apenas se DashEnabled)
                 local thisTween = tween
                 task.spawn(function()
                     while thisTween and thisTween.PlaybackState == Enum.PlaybackState.Playing do
-                        pcall(function()
-                            game:GetService("VirtualInputManager"):SendKeyEvent(true, "Q", false, game)
-                            task.wait(0.05)
-                            game:GetService("VirtualInputManager"):SendKeyEvent(false, "Q", false, game)
-                        end)
+                        if getgenv().DashEnabled ~= false then
+                            pcall(function()
+                                game:GetService("VirtualInputManager"):SendKeyEvent(true, "Q", false, game)
+                                task.wait(0.05)
+                                game:GetService("VirtualInputManager"):SendKeyEvent(false, "Q", false, game)
+                            end)
+                        end
                         task.wait(0.25)
                     end
                 end)
@@ -528,15 +549,17 @@ function topos(Tween_Pos)
                     {CFrame = Tween_Pos}
                 )
                 tween:Play()
-                -- Enquanto estiver usando o tween, ficar apertando Q para dash
+                -- Enquanto estiver usando o tween, ficar apertando Q para dash (apenas se DashEnabled)
                 local thisTween = tween
                 task.spawn(function()
                     while thisTween and thisTween.PlaybackState == Enum.PlaybackState.Playing do
-                        pcall(function()
-                            game:GetService("VirtualInputManager"):SendKeyEvent(true, "Q", false, game)
-                            task.wait(0.05)
-                            game:GetService("VirtualInputManager"):SendKeyEvent(false, "Q", false, game)
-                        end)
+                        if getgenv().DashEnabled ~= false then
+                            pcall(function()
+                                game:GetService("VirtualInputManager"):SendKeyEvent(true, "Q", false, game)
+                                task.wait(0.05)
+                                game:GetService("VirtualInputManager"):SendKeyEvent(false, "Q", false, game)
+                            end)
+                        end
                         task.wait(0.25)
                     end
                 end)
@@ -803,8 +826,10 @@ function target()
                 getgenv().NoTargetTime = tick()
             end
             if tick() - getgenv().NoTargetTime > 20 then
-                print("[Auto Bounty] Nenhum alvo por muito tempo, trocando de servidor...")
-                HopServer()
+                if CanHopServer() then
+                    print("[Auto Bounty] Nenhum alvo por muito tempo, trocando de servidor...")
+                    HopServer()
+                end
             end
         else
             getgenv().targ = p
@@ -876,7 +901,7 @@ spawn(function()
     while task.wait() do
         pcall(function()
             if getgenv().targ and getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("HumanoidRootPart") and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                if (getgenv().targ.Character:WaitForChild("HumanoidRootPart").CFrame.Position - game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart").CFrame.Position).Magnitude < 40 then 
+                if (getgenv().targ.Character:WaitForChild("HumanoidRootPart").CFrame.Position - game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart").CFrame.Position).Magnitude < 60 then 
                     if not gunmethod then
                         if getgenv().Setting.Fruit.Enable then
                             getgenv().weapon = "Blox Fruit"
@@ -897,7 +922,7 @@ spawn(function()
         if getgenv().targ == nil then target() end
         pcall(function()
             if getgenv().targ and getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("HumanoidRootPart") and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                if (getgenv().targ.Character:WaitForChild("HumanoidRootPart").CFrame.Position - game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart").CFrame.Position).Magnitude < 40 then 
+                if (getgenv().targ.Character:WaitForChild("HumanoidRootPart").CFrame.Position - game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart").CFrame.Position).Magnitude < 60 then 
                     spawn(function()
                         if not gunmethod then
                             equip(getgenv().weapon)
@@ -979,11 +1004,15 @@ spawn(function()
                     if getgenv().targ.Character.Humanoid.Health > 0 then
                         local distance = (getgenv().targ.Character.HumanoidRootPart.CFrame.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position).Magnitude
                         if distance < 40 then
+                            -- Perto do inimigo: desativar dash (Q) para não ficar voando demais
+                            getgenv().DashEnabled = false
                             -- Aproximar um pouco à frente e acima do inimigo
                             local hrp = getgenv().targ.Character.HumanoidRootPart
                             local offsetPos = hrp.Position + hrp.CFrame.LookVector * 5 + Vector3.new(0, 7, 0)
                             topos(CFrame.new(offsetPos, hrp.Position))
                         else
+                            -- Longe do inimigo: manter dash (Q) ativo durante o tween
+                            getgenv().DashEnabled = true
                             topos(getgenv().targ.Character.HumanoidRootPart.CFrame*CFrame.new(0,10,0))
                         end
                     else
