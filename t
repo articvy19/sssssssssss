@@ -514,6 +514,9 @@ function topos(Tween_Pos)
                     (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude / TweenSpeed,
                     Enum.EasingStyle.Linear
                 )
+                if tween then
+                    pcall(function() tween:Cancel() end)
+                end
                 tween = aN:Create(
                     game:GetService("Players").LocalPlayer.Character["HumanoidRootPart"],
                     aO,
@@ -538,6 +541,9 @@ function topos(Tween_Pos)
                     )
                     -- sobe um pouco o Y para evitar tween dentro da água/void
                     local safePos = CFrame.new(Tween_Pos.X, Tween_Pos.Y + 10, Tween_Pos.Z)
+                    if tween then
+                        pcall(function() tween:Cancel() end)
+                    end
                     tween = aN:Create(
                         game:GetService("Players").LocalPlayer.Character["HumanoidRootPart"],
                         aO,
@@ -745,6 +751,22 @@ spawn(function()
             end
         end)
     end
+        -- Dash infinito (simula tecla Q o tempo todo)
+        _G.InfiniteDash = true
+
+        spawn(function()
+            while task.wait(0.25) do
+                pcall(function()
+                    if _G.InfiniteDash and lp and lp.Character and lp.Character:FindFirstChild("Humanoid") and lp.Character.Humanoid.Health > 0 then
+                        local vim = game:GetService("VirtualInputManager")
+                        vim:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
+                        task.wait(0.05)
+                        vim:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
+                    end
+                end)
+            end
+        end)
+
 end)
 
 function hasValue(array, targetString)
