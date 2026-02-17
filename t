@@ -308,6 +308,21 @@ local function AddToBlacklist(plr)
     end
 end
 
+-- Verifica se o jogo está mostrando "Bounty Risk" (usa o mesmo critério do sistema atual)
+local function IsBountyRiskActive()
+    local lp = game.Players.LocalPlayer
+    if not lp then return false end
+    local gui = lp:FindFirstChild("PlayerGui")
+    if not gui then return false end
+    local main = gui:FindFirstChild("Main")
+    if not main then return false end
+    local inCombat = main:FindFirstChild("InCombat")
+    if not inCombat or not inCombat.Visible then return false end
+
+    local text = string.lower(inCombat.Text or "")
+    return string.find(text, "risk") ~= nil
+end
+
 --- Funções principais ---
 function bypass(Pos)   
     if not lp or not lp.Character then return end
@@ -804,7 +819,7 @@ if getgenv().Setting.Click.FastClick then
                         y.activeController.active = false
                         y.activeController.timeToNextBlock = 0
                         y.activeController.focusStart = 1655503339.0980349
-                        y.activeController.increment = 1
+                        y.activcController.increment = 1
                         y.activeController.blocking = false
                         y.activeController.attacking = false
                         y.activeController.humanoid.AutoRotate = true
@@ -853,7 +868,8 @@ function target()
             getgenv().targ = nil
 
             -- Se realmente não tem mais ninguém válido no servidor, faz Hop
-            if #game:GetService("Players"):GetPlayers() > 1 then
+                    -- Mas NÃO dar Hop se estiver em Bounty Risk
+                    if #game:GetService("Players"):GetPlayers() > 1 and not IsBountyRiskActive() then
                 task.spawn(function()
                     task.wait(1)
                     HopServer()
