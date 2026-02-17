@@ -547,31 +547,45 @@ local function TweenToCFrame(targetCFrame)
     end)
 end
 
--- Move até o player alvo usando o estilo de movimento do hj.lua
+-- Move até o player alvo “colando” perto dele (teleporte rápido)
 local function MoveToTargetHJ(targetPlayer)
     pcall(function()
         if not targetPlayer or not targetPlayer.Character then return end
+
         local enemyHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
         local myChar = lp.Character
         local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
         if not enemyHRP or not myHRP then return end
 
-        local distance = (enemyHRP.Position - myHRP.Position).Magnitude
-        local destCF
+        local enemyPos = enemyHRP.Position
+        local myPos = myHRP.Position
+        local distance = (enemyPos - myPos).Magnitude
 
-        if distance < 40 then
-            -- Posição levemente à frente/alto do alvo (estilo hj.lua)
-            destCF = CFrame.new(
-                enemyHRP.Position + enemyHRP.CFrame.LookVector * 5,
-                enemyHRP.Position
-            )
-        else
-            -- Quando longe, fica um pouco acima do alvo
-            destCF = enemyHRP.CFrame * CFrame.new(0, 10, 0)
+        -- Se já estamos muito colados, não faz nada
+        if distance < 3 then return end
+
+        -- Cancela qualquer tween antigo para não “travar”
+        if tween then
+            pcall(function() tween:Cancel() end)
+            tween = nil
         end
 
-        -- Usa o sistema de movimento já existente (to) com bypass + MakeSafeCFrame
-        to(destCF)
+        local offset
+        if distance < 40 then
+            -- Perto: fica um pouco à frente e acima do alvo
+            offset = enemyHRP.CFrame.LookVector * 5 + Vector3.new(0, 5, 0)
+        else
+            -- Longe: fica bem acima do alvo e vem descendo
+            offset = Vector3.new(0, 20, 0)
+        end
+
+        local destPos = enemyPos + offset
+        if destPos.Y < 5 then
+            destPos = Vector3.new(destPos.X, 5, destPos.Z)
+        end
+
+        -- Teleporta o HRP para perto do inimigo olhando pra ele
+        myHRP.CFrame = CFrame.new(destPos, enemyPos)
     end)
 end
 
