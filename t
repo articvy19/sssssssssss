@@ -513,7 +513,7 @@ function topos(Tween_Pos)
                 pcall(function() tween:Cancel() end)
             end
             if not TweenSpeed then
-                TweenSpeed = 350
+                TweenSpeed = 200 -- velocidade base mais baixa para evitar kick
             end
             local DefualtY = Tween_Pos.Y
             local TargetY = Tween_Pos.Y
@@ -549,7 +549,7 @@ function topos(Tween_Pos)
                 )
                 local tweenfunc = {}
                 local aN = game:GetService("TweenService")
-                local travelTime = math.clamp(Distance / TweenSpeed, 0.15, 2)
+                local travelTime = math.clamp(Distance / TweenSpeed, 0.5, 3)
                 local aO = TweenInfo.new(travelTime, Enum.EasingStyle.Linear)
                 tween = aN:Create(
                     game:GetService("Players").LocalPlayer.Character["HumanoidRootPart"],
@@ -577,7 +577,7 @@ function topos(Tween_Pos)
             else
                 local tweenfunc = {}
                 local aN = game:GetService("TweenService")
-                local travelTime = math.clamp(Distance / TweenSpeed, 0.15, 2)
+                local travelTime = math.clamp(Distance / TweenSpeed, 0.5, 3)
                 local aO = TweenInfo.new(travelTime, Enum.EasingStyle.Linear)
                 tween = aN:Create(
                     game:GetService("Players").LocalPlayer.Character["HumanoidRootPart"],
@@ -669,10 +669,10 @@ function MoveToTarget(targetPlayer)
         end
 
         if not TweenSpeed then
-            TweenSpeed = 350
+            TweenSpeed = 200 -- mais baixo para reduzir velocidade
         end
 
-        local travelTime = math.clamp(distance / TweenSpeed, 0.15, 2)
+        local travelTime = math.clamp(distance / TweenSpeed, 0.5, 3)
         local tweenService = game:GetService("TweenService")
         local info = TweenInfo.new(travelTime, Enum.EasingStyle.Linear)
 
@@ -683,15 +683,9 @@ function MoveToTarget(targetPlayer)
         local thisTween = tween
         task.spawn(function()
             while thisTween and thisTween.PlaybackState == Enum.PlaybackState.Playing do
-                if getgenv().DashEnabled ~= false then
-                    pcall(function()
-                        game:GetService("VirtualInputManager"):SendKeyEvent(true, "Q", false, game)
-                        task.wait(0.05)
-                        game:GetService("VirtualInputManager"):SendKeyEvent(false, "Q", false, game)
-                    end)
+                    -- Dash desativado temporariamente para evitar kick por velocidade
+                    task.wait(0.4)
                 end
-                task.wait(0.25)
-            end
         end)
 
         return distance, isNear
