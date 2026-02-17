@@ -504,6 +504,62 @@ function requestEntrance(aJ)
     task.wait(0.5)
 end   
 
+-- Movimento estilo hj.lua: tween direto até um CFrame alvo, usando teleporte próximo quando existir
+local function TweenToCFrame(targetCFrame)
+    pcall(function()
+        if not lp or not lp.Character then return end
+        local hrp = lp.Character:FindFirstChild("HumanoidRootPart")
+        local humanoid = lp.Character:FindFirstChild("Humanoid")
+        if not hrp or not humanoid or humanoid.Health <= 0 then return end
+
+        -- Garante altura segura (anti água/void)
+        local safeTarget = MakeSafeCFrame(targetCFrame)
+        local targetPos = safeTarget.Position
+        local currentPos = hrp.Position
+        local distance = (targetPos - currentPos).Magnitude
+
+        -- Se já estamos muito perto, apenas seta o CFrame
+        if distance <= 150 then
+            if tween then pcall(function() tween:Cancel() end) end
+            hrp.CFrame = safeTarget
+            return
+        end
+
+        -- Usa o teleporte mais próximo do inimigo antes de tweenar (similar ao hj.lua)
+        local teleporterPos = CheckNearestTeleporter(safeTarget)
+        if teleporterPos then
+            pcall(function()
+                if tween then tween:Cancel() end
+            end)
+            requestEntrance(teleporterPos)
+        end
+
+        local tweenService = game:GetService("TweenService")
+        local speed = 315
+        local tweenInfo = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
+
+        if tween then
+            pcall(function() tween:Cancel() end)
+        end
+
+        tween = tweenService:Create(hrp, tweenInfo, {CFrame = safeTarget})
+        tween:Play()
+    end)
+end
+
+-- Move até o player alvo usando o estilo de movimento do hj.lua
+local function MoveToTargetHJ(targetPlayer)
+    pcall(function()
+        if not targetPlayer or not targetPlayer.Character then return end
+        local hrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        -- Mesmo offset usado em AttackNearestPlayer do hj.lua (um pouco acima e à frente do alvo)
+        local targetCF = hrp.CFrame * CFrame.new(0, 5.4, 5.5)
+        TweenToCFrame(targetCF)
+    end)
+end
+
 function topos(Tween_Pos)
     pcall(function()
         if game:GetService("Players").LocalPlayer 
@@ -1069,12 +1125,8 @@ spawn(function()
             if getgenv().targ and getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("HumanoidRootPart") and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
                 if game.Players.LocalPlayer.Character:FindFirstChild("Humanoid").Health > getgenv().Setting.SafeHealth.Health then
                     if getgenv().targ.Character.Humanoid.Health > 0 then
-                        local distance = (getgenv().targ.Character.HumanoidRootPart.CFrame.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position).Magnitude
-                        if distance < 40 then
-                            topos(CFrame.new(getgenv().targ.Character.HumanoidRootPart.Position + getgenv().targ.Character.HumanoidRootPart.CFrame.LookVector * 5, getgenv().targ.Character.HumanoidRootPart.Position))
-                        else
-                            topos(getgenv().targ.Character.HumanoidRootPart.CFrame*CFrame.new(0,10,0))
-                        end
+                        -- Movimento substituído pelo estilo do hj.lua (TweenService2/AttackNearestPlayer adaptado)
+                        MoveToTargetHJ(getgenv().targ)
                     else
                         print("[Auto Bounty] Alvo morreu, procurando novo...")
                         SkipPlayer()
