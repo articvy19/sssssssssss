@@ -812,13 +812,13 @@ spawn(function()
                     getgenv().LastTargetHealth = currentHealth
                     getgenv().LastDamageTime = tick()
                 else
-                    if math.abs(currentHealth - getgenv().LastTargetHealth) > 1 then
-                        -- Qualquer mudança de HP reseta o timer
+                    if currentHealth ~= getgenv().LastTargetHealth then
+                        -- Qualquer mudança de HP (mesmo pequena) reseta o timer
                         getgenv().LastTargetHealth = currentHealth
                         getgenv().LastDamageTime = tick()
                     else
                         -- HP parado e estamos perto: se passou muito tempo, troca alvo
-                        if tick() - (getgenv().LastDamageTime or 0) > 3.5 then
+                        if tick() - (getgenv().LastDamageTime or 0) > 5 then
                             print("[Auto Bounty] Sem dano recente no alvo (perto), trocando de inimigo...")
                             SkipPlayer()
                         end
