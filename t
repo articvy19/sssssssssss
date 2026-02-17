@@ -405,18 +405,12 @@ function bypass(Pos)
     end
 end
 
--- Sistema alternativo de teleporte para o lugar mais próximo + tween normal
+-- Sistema alternativo de teleporte para o lugar mais próximo + tween normal (versão hj)
 function CheckNearestTeleporter(aI)
     local MyLevel = game.Players.LocalPlayer.Data.Level.Value
     local vcspos = aI.Position
     local min = math.huge
     local min2 = math.huge
-    local lp = game.Players.LocalPlayer
-    local char = lp and lp.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp then
-        return nil
-    end
     local y = game.PlaceId
     local World1, World2, World3
     if y == 2753915549 then
@@ -434,7 +428,6 @@ function CheckNearestTeleporter(aI)
             ["Caslte On The Sea"] = Vector3.new(-5092, 315, -3130),
             ["Floating Turtle"] = Vector3.new(-12001, 332, -8861),
             ["Beautiful Pirate"] = Vector3.new(5319, 23, -93),
-            -- Temple Of Time existe, mas não deve ser usado para alvos no chão
             ["Temple Of Time"] = Vector3.new(28286, 14897, 103)
         }
     elseif World2 then
@@ -452,47 +445,29 @@ function CheckNearestTeleporter(aI)
             ["Under Water Island Entrace"] = Vector3.new(3865, 5, -1926)
         }
     end
-    -- Se o inimigo estiver claramente em uma dessas ilhas, force usar o teleporte da própria ilha
-    if World3 then
-        local function near(pos, center, radius)
-            return (pos - center).Magnitude <= radius
-        end
-
-        local turtlePos = TableLocations["Floating Turtle"]
-        if turtlePos and near(vcspos, turtlePos, 4000) then
-            return turtlePos
-        end
-
-        local mansionPos = TableLocations["Mansion"]
-        if mansionPos and near(vcspos, mansionPos, 3500) then
-            return mansionPos
-        end
-
-        local castlePos = TableLocations["Caslte On The Sea"]
-        if castlePos and near(vcspos, castlePos, 3500) then
-            return castlePos
-        end
-
-        local hydraPos = TableLocations["Hydra"]
-        if hydraPos and near(vcspos, hydraPos, 3500) then
-            return hydraPos
-        end
-    end
-
     local TableLocations2 = {}
     for r, v in pairs(TableLocations) do
         TableLocations2[r] = (v - vcspos).Magnitude
     end
-    local choose
     for r, v in pairs(TableLocations2) do
         if v < min then
             min = v
+            min2 = v
+        end
+    end
+    local choose
+    for r, v in pairs(TableLocations2) do
+        if v <= min then
             choose = TableLocations[r]
         end
     end
-
-    -- Sempre retorna o teleporte mais próximo do inimigo (se existir)
-    return choose
+    local char = game.Players.LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return choose end
+    local min3 = (vcspos - hrp.Position).Magnitude
+    if min2 <= min3 then
+        return choose
+    end
 end    
 
 function requestEntrance(aJ)
@@ -580,29 +555,28 @@ function topos(Tween_Pos)
             if not TweenSpeed then
                 TweenSpeed = 350
             end
-            local DefualtY = Tween_Pos.Y
-            local TargetY = Tween_Pos.Y
-            local targetCFrameWithDefualtY = CFrame.new(Tween_Pos.X, DefualtY, Tween_Pos.Z)
-            local targetPos = Tween_Pos.Position
-            local oldcframe = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
-            local Distance = (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude
+            DefualtY = Tween_Pos.Y
+            TargetY = Tween_Pos.Y
+            targetCFrameWithDefualtY = CFrame.new(Tween_Pos.X, DefualtY, Tween_Pos.Z)
+            targetPos = Tween_Pos.Position
+            oldcframe = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
+            Distance = (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude
             if Distance <= 300 then
                 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = Tween_Pos
-                return
             end
             local aM = CheckNearestTeleporter(Tween_Pos)
             if aM then
                 pcall(function()
-                    if tween then tween:Cancel() end
+                    tween:Cancel()
                 end)
                 requestEntrance(aM)
             end
-            local b1 = CFrame.new(
+            b1 = CFrame.new(
                 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
                 DefualtY,
                 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
             )
-                local IngoreY = true
+            IngoreY = true
             if IngoreY and (b1.Position - targetCFrameWithDefualtY.Position).Magnitude > 5 then
                 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
                     game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
@@ -615,9 +589,6 @@ function topos(Tween_Pos)
                     (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude / TweenSpeed,
                     Enum.EasingStyle.Linear
                 )
-                if tween then
-                    pcall(function() tween:Cancel() end)
-                end
                 tween = aN:Create(
                     game:GetService("Players").LocalPlayer.Character["HumanoidRootPart"],
                     aO,
@@ -633,34 +604,33 @@ function topos(Tween_Pos)
                     TargetY,
                     game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
                 )
-                else
-                    local tweenfunc = {}
-                    local aN = game:GetService("TweenService")
-                    local aO = TweenInfo.new(
-                        (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude / TweenSpeed,
-                        Enum.EasingStyle.Linear
-                    )
-                    -- sobe um pouco o Y para evitar tween dentro da água/void
-                    local safePos = CFrame.new(Tween_Pos.X, Tween_Pos.Y + 10, Tween_Pos.Z)
-                    if tween then
-                        pcall(function() tween:Cancel() end)
-                    end
-                    tween = aN:Create(
-                        game:GetService("Players").LocalPlayer.Character["HumanoidRootPart"],
-                        aO,
-                        {CFrame = safePos}
-                    )
-                    tween:Play()
-                    function tweenfunc:Stop()
-                        tween:Cancel()
-                    end
-                    tween.Completed:Wait()
-                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
-                        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
-                        TargetY + 10,
-                        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
-                    )
+            else
+                local tweenfunc = {}
+                local aN = game:GetService("TweenService")
+                local aO = TweenInfo.new(
+                    (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude / TweenSpeed,
+                    Enum.EasingStyle.Linear
+                )
+                tween = aN:Create(
+                    game:GetService("Players").LocalPlayer.Character["HumanoidRootPart"],
+                    aO,
+                    {CFrame = Tween_Pos}
+                )
+                tween:Play()
+                function tweenfunc:Stop()
+                    tween:Cancel()
                 end
+                tween.Completed:Wait()
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
+                    TargetY,
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
+                )
+            end
+            if not tween then
+                return tween
+            end
+            return tweenfunc
         end
     end)
 end
@@ -674,7 +644,7 @@ function StopTween(target)
                 tween = nil
             end            
             local player = game:GetService("Players").LocalPlayer
-            local character = player and character
+            local character = player and player.Character
             local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
             if humanoidRootPart then
                 humanoidRootPart.Anchored = true
