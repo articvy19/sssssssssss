@@ -646,21 +646,21 @@ function MoveToTarget(targetPlayer)
             end
         end
 
-        -- Define posição alvo: longe = acima do inimigo, perto = um pouco à frente e acima
+        -- Define posição alvo: sempre acima do inimigo, mudando só a altura
         local goalCFrame
         local isNear = false
 
         if distance < 40 then
-            -- Perto: posiciona um pouco à frente e acima do inimigo
+            -- Perto: posiciona logo acima do inimigo
             isNear = true
             getgenv().DashEnabled = false
-            local offsetPos = enemyRoot.Position + enemyRoot.CFrame.LookVector * 5 + Vector3.new(0, 7, 0)
+            local offsetPos = enemyRoot.Position + Vector3.new(0, 7, 0)
             goalCFrame = CFrame.new(offsetPos, enemyRoot.Position)
         else
-            -- Longe: fica diretamente acima do inimigo
+            -- Longe: fica um pouco mais alto acima do inimigo
             isNear = false
             getgenv().DashEnabled = true
-            goalCFrame = enemyRoot.CFrame * CFrame.new(0, 10, 0)
+            goalCFrame = enemyRoot.CFrame * CFrame.new(0, 12, 0)
         end
 
         -- Cancela tween antigo e cria um novo para ir até a posição escolhida
