@@ -146,9 +146,27 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
 _G.Seriality = true
+
+-- Hop para outro servidor público
+local function HopServer()
+    pcall(function()
+        local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", game.PlaceId)
+        local response = HttpService:JSONDecode(game:HttpGet(url))
+        if response and response.data then
+            for _, server in ipairs(response.data) do
+                if type(server) == "table" and server.id ~= game.JobId and server.playing < server.maxPlayers then
+                    TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id)
+                    break
+                end
+            end
+        end
+    end)
+end
 
 local function IsEntityAlive(entity)
     if not entity then return false end
@@ -777,9 +795,17 @@ function target()
             end
         end 
         if p == nil then
-            -- Nada encontrado: limpa lista de checados para não travar sem alvo
+            -- Nada encontrado: limpa lista de checados
             getgenv().checked = {}
             getgenv().targ = nil
+
+            -- Se realmente não tem mais ninguém válido no servidor, faz Hop
+            if #game:GetService("Players"):GetPlayers() > 1 then
+                task.spawn(function()
+                    task.wait(1)
+                    HopServer()
+                end)
+            end
         else
             getgenv().targ = p
 
