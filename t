@@ -937,6 +937,13 @@ spawn(function()
         if getgenv().targ == nil then target() end
         pcall(function()
             if getgenv().targ and getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("HumanoidRootPart") and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                -- Se o alvo entrar em SafeZone depois de já ter sido escolhido, pula para outro
+                if isInSafeZone(getgenv().targ.Character.HumanoidRootPart.Position) then
+                    print("[Auto Bounty] Alvo entrou em Safe Zone, pulando para outro...")
+                    SkipPlayer()
+                    return
+                end
+
                 if game.Players.LocalPlayer.Character:FindFirstChild("Humanoid").Health > getgenv().Setting.SafeHealth.Health then
                     if getgenv().targ.Character.Humanoid.Health > 0 then
                         local distance = (getgenv().targ.Character.HumanoidRootPart.CFrame.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position).Magnitude
