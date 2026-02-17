@@ -521,16 +521,19 @@ function topos(Tween_Pos)
             local targetPos = Tween_Pos.Position
             local oldcframe = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
             local Distance = (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude
-            if Distance <= 300 then
-                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = Tween_Pos
-                return
-            end
-            local aM = CheckNearestTeleporter(Tween_Pos)
-            if aM then
-                pcall(function()
-                    if tween then tween:Cancel() end
-                end)
-                requestEntrance(aM)
+
+            -- Se estiver MUITO longe do alvo, tenta usar teleporte mais próximo antes do tween
+            if Distance > 2000 then
+                local aM = CheckNearestTeleporter(Tween_Pos)
+                if aM then
+                    pcall(function()
+                        if tween then tween:Cancel() end
+                    end)
+                    requestEntrance(aM)
+                    -- Recalcula posição e distância após o teleporte
+                    targetPos = Tween_Pos.Position
+                    Distance = (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude
+                end
             end
             local b1 = CFrame.new(
                 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
@@ -546,10 +549,8 @@ function topos(Tween_Pos)
                 )
                 local tweenfunc = {}
                 local aN = game:GetService("TweenService")
-                local aO = TweenInfo.new(
-                    (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude / TweenSpeed,
-                    Enum.EasingStyle.Linear
-                )
+                local travelTime = math.clamp(Distance / TweenSpeed, 0.15, 2)
+                local aO = TweenInfo.new(travelTime, Enum.EasingStyle.Linear)
                 tween = aN:Create(
                     game:GetService("Players").LocalPlayer.Character["HumanoidRootPart"],
                     aO,
@@ -576,10 +577,8 @@ function topos(Tween_Pos)
             else
                 local tweenfunc = {}
                 local aN = game:GetService("TweenService")
-                local aO = TweenInfo.new(
-                    (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude / TweenSpeed,
-                    Enum.EasingStyle.Linear
-                )
+                local travelTime = math.clamp(Distance / TweenSpeed, 0.15, 2)
+                local aO = TweenInfo.new(travelTime, Enum.EasingStyle.Linear)
                 tween = aN:Create(
                     game:GetService("Players").LocalPlayer.Character["HumanoidRootPart"],
                     aO,
