@@ -279,6 +279,7 @@ getgenv().checked = {}
 getgenv().pl = p:GetPlayers()
 getgenv().LastTargetHealth = nil
 getgenv().LastDamageTime = tick()
+getgenv().NoTargetTime = nil
 wait(1)
 
 --- Funções principais ---
@@ -493,6 +494,18 @@ function topos(Tween_Pos)
                     {CFrame = targetCFrameWithDefualtY}
                 )
                 tween:Play()
+                -- Enquanto estiver usando o tween, ficar apertando Q para dash
+                local thisTween = tween
+                task.spawn(function()
+                    while thisTween and thisTween.PlaybackState == Enum.PlaybackState.Playing do
+                        pcall(function()
+                            game:GetService("VirtualInputManager"):SendKeyEvent(true, "Q", false, game)
+                            task.wait(0.05)
+                            game:GetService("VirtualInputManager"):SendKeyEvent(false, "Q", false, game)
+                        end)
+                        task.wait(0.25)
+                    end
+                end)
                 function tweenfunc:Stop()
                     tween:Cancel()
                 end
@@ -515,6 +528,18 @@ function topos(Tween_Pos)
                     {CFrame = Tween_Pos}
                 )
                 tween:Play()
+                -- Enquanto estiver usando o tween, ficar apertando Q para dash
+                local thisTween = tween
+                task.spawn(function()
+                    while thisTween and thisTween.PlaybackState == Enum.PlaybackState.Playing do
+                        pcall(function()
+                            game:GetService("VirtualInputManager"):SendKeyEvent(true, "Q", false, game)
+                            task.wait(0.05)
+                            game:GetService("VirtualInputManager"):SendKeyEvent(false, "Q", false, game)
+                        end)
+                        task.wait(0.25)
+                    end
+                end)
                 function tweenfunc:Stop()
                     tween:Cancel()
                 end
@@ -771,10 +796,21 @@ function target()
             end
         end 
         if p == nil then
-            print("[Auto Bounty] Nenhum alvo encontrado, trocando de servidor...")
-            HopServer()
+            -- Nenhum alvo: zera lista e começa a contar tempo sem alvo
+            getgenv().checked = {}
+            getgenv().targ = nil
+            if not getgenv().NoTargetTime then
+                getgenv().NoTargetTime = tick()
+            end
+            if tick() - getgenv().NoTargetTime > 20 then
+                print("[Auto Bounty] Nenhum alvo por muito tempo, trocando de servidor...")
+                HopServer()
+            end
         else
             getgenv().targ = p
+
+            -- Resetar contador de tempo sem alvo
+            getgenv().NoTargetTime = nil
 
             -- Quando escolhe um novo alvo, inicia controle básico de HP
             if getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("Humanoid") then
@@ -943,7 +979,10 @@ spawn(function()
                     if getgenv().targ.Character.Humanoid.Health > 0 then
                         local distance = (getgenv().targ.Character.HumanoidRootPart.CFrame.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position).Magnitude
                         if distance < 40 then
-                            topos(CFrame.new(getgenv().targ.Character.HumanoidRootPart.Position + getgenv().targ.Character.HumanoidRootPart.CFrame.LookVector * 5, getgenv().targ.Character.HumanoidRootPart.Position))
+                            -- Aproximar um pouco à frente e acima do inimigo
+                            local hrp = getgenv().targ.Character.HumanoidRootPart
+                            local offsetPos = hrp.Position + hrp.CFrame.LookVector * 5 + Vector3.new(0, 7, 0)
+                            topos(CFrame.new(offsetPos, hrp.Position))
                         else
                             topos(getgenv().targ.Character.HumanoidRootPart.CFrame*CFrame.new(0,10,0))
                         end
