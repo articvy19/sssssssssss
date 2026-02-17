@@ -152,6 +152,24 @@ local TeleportService = game:GetService("TeleportService")
 local player = Players.LocalPlayer
 _G.Seriality = true
 
+-- Quando morrer/respawnar, reseta alvos e volta a ativar o sistema
+player.CharacterAdded:Connect(function(char)
+    task.spawn(function()
+        repeat task.wait() until char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart")
+        getgenv().targ = nil
+        getgenv().LastTargetHealth = nil
+        getgenv().LastDamageTime = tick()
+        getgenv().checked = {}
+        pcall(function()
+            StopTween()
+        end)
+        pcall(function()
+            buso()
+        end)
+        print("[Auto Bounty] Respawn detectado, retomando caça...")
+    end)
+end)
+
 -- Hop para outro servidor público
 local function HopServer()
     pcall(function()
@@ -483,7 +501,7 @@ function topos(Tween_Pos)
                 DefualtY,
                 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
             )
-            local IngoreY = true
+                local IngoreY = true
             if IngoreY and (b1.Position - targetCFrameWithDefualtY.Position).Magnitude > 5 then
                 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
                     game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
@@ -511,29 +529,31 @@ function topos(Tween_Pos)
                     TargetY,
                     game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
                 )
-            else
-                local tweenfunc = {}
-                local aN = game:GetService("TweenService")
-                local aO = TweenInfo.new(
-                    (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude / TweenSpeed,
-                    Enum.EasingStyle.Linear
-                )
-                tween = aN:Create(
-                    game:GetService("Players").LocalPlayer.Character["HumanoidRootPart"],
-                    aO,
-                    {CFrame = Tween_Pos}
-                )
-                tween:Play()
-                function tweenfunc:Stop()
-                    tween:Cancel()
+                else
+                    local tweenfunc = {}
+                    local aN = game:GetService("TweenService")
+                    local aO = TweenInfo.new(
+                        (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude / TweenSpeed,
+                        Enum.EasingStyle.Linear
+                    )
+                    -- sobe um pouco o Y para evitar tween dentro da água/void
+                    local safePos = CFrame.new(Tween_Pos.X, Tween_Pos.Y + 10, Tween_Pos.Z)
+                    tween = aN:Create(
+                        game:GetService("Players").LocalPlayer.Character["HumanoidRootPart"],
+                        aO,
+                        {CFrame = safePos}
+                    )
+                    tween:Play()
+                    function tweenfunc:Stop()
+                        tween:Cancel()
+                    end
+                    tween.Completed:Wait()
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
+                        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
+                        TargetY + 10,
+                        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
+                    )
                 end
-                tween.Completed:Wait()
-                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
-                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
-                    TargetY,
-                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
-                )
-            end
         end
     end)
 end
@@ -587,7 +607,8 @@ function to(Pos)
             end
             pcall(function()
                 if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
-                    tween = game:GetService("TweenService"):Create(game.Players.LocalPlayer.Character.HumanoidRootPart,TweenInfo.new(Distance / Speed, Enum.EasingStyle.Linear),{CFrame = Pos})
+	                local safePos = MakeSafeCFrame(Pos)
+	                tween = game:GetService("TweenService"):Create(game.Players.LocalPlayer.Character.HumanoidRootPart,TweenInfo.new(Distance / Speed, Enum.EasingStyle.Linear),{CFrame = safePos})
                     if tween then
                         tween:Play()
                     end
@@ -603,7 +624,8 @@ function to(Pos)
             if game.Players.LocalPlayer.Character.Humanoid.Sit == true then
                 game.Players.LocalPlayer.Character.Humanoid.Sit = false
             end
-            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X, Pos.Y, game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z)
+	        local finalSafe = MakeSafeCFrame(Pos)
+	        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X, finalSafe.Y, game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z)
         end
     end)
 end
@@ -732,6 +754,15 @@ function hasValue(array, targetString)
         end
     end
     return false
+end
+
+-- Força o destino dos tweens a não ficar muito baixo (água/void)
+local function MakeSafeCFrame(cf)
+    local x, y, z = cf.X, cf.Y, cf.Z
+    if y < 5 then
+        y = 5
+    end
+    return CFrame.new(x, y, z)
 end
 
 -- Fast Attack
