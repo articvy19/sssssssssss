@@ -1042,3 +1042,110 @@ end)
 -- =========================================
 -- FIM DO NOVO AIMBOT SKILL
 -- =========================================
+
+-- =========================================
+-- INTERFACE FLUENT: LISTA DE PLAYERS / ATACADOS
+-- =========================================
+
+local function GetOnlinePlayersText()
+    local names = {}
+    for _, plr in ipairs(game:GetService("Players"):GetPlayers()) do
+        table.insert(names, plr.Name)
+    end
+    if #names == 0 then
+        return "Nenhum player encontrado."
+    end
+    table.sort(names)
+    return table.concat(names, ", ")
+end
+
+local function GetTriedPlayersText()
+    local nameSet = {}
+
+    if getgenv().checked then
+        for _, value in ipairs(getgenv().checked) do
+            if typeof(value) == "Instance" and value:IsA("Player") then
+                nameSet[value.Name] = true
+            elseif type(value) == "string" then
+                nameSet[value] = true
+            end
+        end
+    end
+
+    if getgenv().Blacklist then
+        for _, value in ipairs(getgenv().Blacklist) do
+            if type(value) == "string" then
+                nameSet[value] = true
+            end
+        end
+    end
+
+    local result = {}
+    for name in pairs(nameSet) do
+        table.insert(result, name)
+    end
+
+    if #result == 0 then
+        return "Ainda não tentei atacar ninguém."
+    end
+
+    table.sort(result)
+    return table.concat(result, ", ")
+end
+
+local function SafeSetParagraph(paragraph, content)
+    if not paragraph then return end
+    if typeof(paragraph) ~= "table" then return end
+
+    if paragraph.SetDesc then
+        paragraph:SetDesc(content)
+    elseif paragraph.SetText then
+        paragraph:SetText(content)
+    elseif paragraph.SetContent then
+        paragraph:SetContent(content)
+    end
+end
+
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+
+local FluentWindow = Fluent:CreateWindow({
+    Title = "Auto Bounty - Monitor",
+    SubTitle = "Players & Tentativas",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(480, 320),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.RightControl
+})
+
+local PlayersTab = FluentWindow:AddTab({
+    Title = "Players",
+    Icon = "users"
+})
+
+local OnlineParagraph = PlayersTab:AddParagraph({
+    Title = "Jogadores online",
+    Content = "Carregando..."
+})
+
+local TriedParagraph = PlayersTab:AddParagraph({
+    Title = "Já tentei atacar",
+    Content = "Ainda não tentei atacar ninguém."
+})
+
+FluentWindow:SelectTab(1)
+
+task.spawn(function()
+    while task.wait(2) do
+        pcall(function()
+            SafeSetParagraph(OnlineParagraph, GetOnlinePlayersText())
+            SafeSetParagraph(TriedParagraph, GetTriedPlayersText())
+        end)
+    end
+end)
+
+Fluent:Notify({
+    Title = "Fluent UI",
+    Content = "Monitor de players carregado (RightCtrl para esconder)",
+    Duration = 5
+})
