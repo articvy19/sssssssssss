@@ -1,3 +1,4 @@
+do
   ply = game.Players
   plr = ply.LocalPlayer
   Root = plr.Character.HumanoidRootPart
@@ -27,6 +28,7 @@
   Sec = 0.1
   ClickState = 0
   Num_self = 25
+end
 
 repeat local start = plr.PlayerGui:WaitForChild("Main"):WaitForChild("Loading") and game:IsLoaded() wait() until start
 World1 = game.PlaceId == 2753915549
@@ -615,23 +617,23 @@ end
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
-local Window = Fluent:CreateWindow({Title = "Allan Hub",SubTitle = "",TabWidth = 155,Size = UDim2.fromOffset(500, 300),Acrylic = false,Theme = "Luffy",MinimizeKey = Enum.KeyCode.End})
+local Window = Fluent:CreateWindow({Title = "Allan Hub - Blox Fruits",SubTitle = "by Allan Lindo",TabWidth = 155,Size = UDim2.fromOffset(500, 300),Acrylic = false,Theme = "Darker",MinimizeKey = Enum.KeyCode.End})
 local Tabs = {
-  Shop = Window:AddTab({Title = "Shop"}),
-  status = Window:AddTab({Title = "Status"}),
-  Main = Window:AddTab({Title = "Farming"}),
-  Quests = Window:AddTab({Title = "Get Item"}),
-  Settings = Window:AddTab({Title = "Settings"}),
-  SeaEvent = Window:AddTab({Title = "Sea Events"}),
-  Mirage = Window:AddTab({Title = "Mirage"}),
- Travel = Window:AddTab({Title = "Teleport"}),
-  outros = Window:AddTab({Title = "Others"}),
-  Drago = Window:AddTab({Title = "Dragon Trainer"}),
-  Prehistoric = Window:AddTab({Title = "vulcanic"}),
-  Fruit = Window:AddTab({Title = "Fruit"}),
-  Raids = Window:AddTab({Title = "Raid"}),
-  Combat = Window:AddTab({Title = "Local Player"}),
-  Misc = Window:AddTab({Title = "Misc"})
+  Main = Window:AddTab({Title = "Farming", Icon = "home"}),
+  Shop = Window:AddTab({Title = "Shop", Icon = "shopping-cart"}),
+  status = Window:AddTab({Title = "Status", Icon = "activity"}),
+  Quests = Window:AddTab({Title = "Get Item", Icon = "scale"}),
+  outros = Window:AddTab({Title = "Others", Icon = "info"}),
+  Settings = Window:AddTab({Title = "Settings", Icon = "settings"}),
+  Travel = Window:AddTab({Title = "Teleport", Icon = "bot-message-square"}),
+  Mirage = Window:AddTab({Title = "Mirage", Icon = "skull"}),
+  Drago = Window:AddTab({Title = "Dragon Trainer", Icon = "bookmark"}),
+  Prehistoric = Window:AddTab({Title = "vulcanic", Icon = "battery"}),
+  Fruit = Window:AddTab({Title = "Fruit", Icon = "cherry"}),
+  Raids = Window:AddTab({Title = "Raid", Icon = "arrow-down-right"}),
+  SeaEvent = Window:AddTab({Title = "Sea Events", Icon = "anchor"}),
+  Combat = Window:AddTab({Title = "Local Player", Icon = "swords"}),
+  Misc = Window:AddTab({Title = "Misc", Icon = "album"})
 }
 if game.CoreGui:FindFirstChild('UIBUTTON') then
   game.CoreGui:FindFirstChild('UIBUTTON'):Destroy()
@@ -652,15 +654,15 @@ Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 Frame.BorderColor3 = Color3.fromRGB(0, 0, 0)
 Frame.BorderSizePixel = 0
 Frame.Transparency = 1
-Frame.Position = UDim2.new(0, 90, 0, 90) -- canto superior esquerdo
-Frame.Size = UDim2.new(0, 90, 0, 90) -- Frame menor
+Frame.Position = UDim2.new(0, 10, 0, 10) -- canto superior esquerdo
+Frame.Size = UDim2.new(0, 50, 0, 50) -- Frame menor
 
 ImageButton.Parent = Frame
 ImageButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 ImageButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
 ImageButton.BorderSizePixel = 0
 ImageButton.Position = UDim2.new(0.5, -25, 0.5, -25) -- centralizado no Frame
-ImageButton.Size = UDim2.new(0, 90, 0, 90) -- botão menor
+ImageButton.Size = UDim2.new(0, 50, 0, 50) -- botão menor
 ImageButton.Image = "rbxassetid://101910555555494"
 ImageButton.Draggable = false
 ImageButton.MouseButton1Click:Connect(function()
