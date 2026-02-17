@@ -247,6 +247,8 @@ getgenv().targ = nil
 getgenv().lasttarrget = nil
 getgenv().checked = {}
 getgenv().pl = p:GetPlayers()
+getgenv().LastTargetHealth = nil
+getgenv().LastDamageTime = tick()
 wait(1)
 
 --- Funções principais ---
@@ -740,8 +742,48 @@ function target()
         end 
         if p == nil then hopserver = true end 
         getgenv().targ = p
+
+        -- Inicializa monitor de HP quando novo alvo é selecionado
+        if getgenv().targ and getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("Humanoid") then
+            getgenv().LastTargetHealth = getgenv().targ.Character.Humanoid.Health
+            getgenv().LastDamageTime = tick()
+        else
+            getgenv().LastTargetHealth = nil
+        end
     end)
 end
+
+-- Monitorar HP do inimigo: se não sofrer dano por um tempo, trocar de alvo
+spawn(function()
+    while task.wait(1) do
+        pcall(function()
+            local t = getgenv().targ
+            if t and t.Character and t.Character:FindFirstChild("Humanoid") then
+                local currentHealth = t.Character.Humanoid.Health
+
+                if getgenv().LastTargetHealth == nil then
+                    getgenv().LastTargetHealth = currentHealth
+                    getgenv().LastDamageTime = tick()
+                else
+                    if currentHealth < getgenv().LastTargetHealth then
+                        -- Dano foi causado, atualiza marcadores
+                        getgenv().LastTargetHealth = currentHealth
+                        getgenv().LastDamageTime = tick()
+                    else
+                        -- Sem dano: se passou muito tempo, pula para próximo inimigo
+                        if tick() - (getgenv().LastDamageTime or 0) > 7 then
+                            print("[Auto Bounty] Sem dano recente no alvo, trocando de inimigo...")
+                            SkipPlayer()
+                        end
+                    end
+                end
+            else
+                -- Sem alvo válido, reseta info de HP
+                getgenv().LastTargetHealth = nil
+            end
+        end)
+    end
+end)
 
 -- Sistema de armas
 gunmethod = getgenv().Setting.Gun.GunMode
