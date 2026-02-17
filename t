@@ -689,17 +689,9 @@ local function isInSafeZone(position)
     local safeZonesFolder = worldOrigin:FindFirstChild("SafeZones")
     if not safeZonesFolder then return false end
 
-    for _, zone in ipairs(safeZonesFolder:GetChildren()) do
-        -- Cada filho pode ser um Part direto ou um Model com Part dentro
-        local part = nil
-        if zone:IsA("BasePart") then
-            part = zone
-        elseif zone:IsA("Model") then
-            part = zone:FindFirstChildWhichIsA("BasePart")
-        end
-
-        if part and part.Size then
-            -- Converte posição para espaço local da zona para suportar rotação
+    -- Procura QUALQUER BasePart dentro de SafeZones (filhos e descendentes)
+    for _, part in ipairs(safeZonesFolder:GetDescendants()) do
+        if part:IsA("BasePart") and part.Size then
             local localPos = part.CFrame:PointToObjectSpace(position)
             local halfSize = part.Size * 0.5
 
