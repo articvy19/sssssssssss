@@ -308,7 +308,6 @@ local function AddToBlacklist(plr)
     end
 end
 
--- Verifica se o jogo está mostrando "Bounty Risk" (usa o mesmo critério do sistema atual)
 local function IsBountyRiskActive()
     local lp = game.Players.LocalPlayer
     if not lp then return false end
@@ -319,8 +318,29 @@ local function IsBountyRiskActive()
     local inCombat = main:FindFirstChild("InCombat")
     if not inCombat or not inCombat.Visible then return false end
 
-    local text = string.lower(inCombat.Text or "")
-    return string.find(text, "risk") ~= nil
+    local function hasRiskText(obj)
+        if obj and (obj:IsA("TextLabel") or obj:IsA("TextButton")) then
+            local t = string.lower(obj.Text or "")
+            if string.find(t, "risk") then
+                return true
+            end
+        end
+        return false
+    end
+
+    -- Verifica se o próprio objeto InCombat tem o texto
+    if hasRiskText(inCombat) then
+        return true
+    end
+
+    -- Procura em qualquer TextLabel/TextButton filho (mais robusto)
+    for _, descendant in ipairs(inCombat:GetDescendants()) do
+        if hasRiskText(descendant) then
+            return true
+        end
+    end
+
+    return false
 end
 
 --- Funções principais ---
@@ -390,6 +410,12 @@ function CheckNearestTeleporter(aI)
     local vcspos = aI.Position
     local min = math.huge
     local min2 = math.huge
+    local lp = game.Players.LocalPlayer
+    local char = lp and lp.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then
+        return nil
+    end
     local y = game.PlaceId
     local World1, World2, World3
     if y == 2753915549 then
@@ -456,22 +482,16 @@ function CheckNearestTeleporter(aI)
     for r, v in pairs(TableLocations) do
         TableLocations2[r] = (v - vcspos).Magnitude
     end
+    local choose
     for r, v in pairs(TableLocations2) do
         if v < min then
             min = v
-            min2 = v
-        end
-    end
-    local choose
-    for r, v in pairs(TableLocations2) do
-        if v <= min then
             choose = TableLocations[r]
         end
     end
-    local min3 = (vcspos - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
-    if min2 <= min3 then
-        return choose
-    end
+
+    -- Sempre retorna o teleporte mais próximo do inimigo (se existir)
+    return choose
 end    
 
 function requestEntrance(aJ)
@@ -867,12 +887,16 @@ function target()
             getgenv().checked = {}
             getgenv().targ = nil
 
-            -- Se realmente não tem mais ninguém válido no servidor, faz Hop
-                    -- Mas NÃO dar Hop se estiver em Bounty Risk
-                    if #game:GetService("Players"):GetPlayers() > 1 and not IsBountyRiskActive() then
+            -- Se realmente não tem mais ninguém válido no servidor, tenta Hop
+            if #game:GetService("Players"):GetPlayers() > 1 then
                 task.spawn(function()
                     task.wait(1)
-                    HopServer()
+                    -- Recheca o Bounty Risk na hora do Hop para evitar race condition
+                    if not IsBountyRiskActive() then
+                        HopServer()
+                    else
+                        print("[Auto Bounty] Bounty Risk ativo, cancelando Hop.")
+                    end
                 end)
             end
         else
