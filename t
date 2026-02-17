@@ -384,6 +384,192 @@ function TweenService2(...)
     return tweenfunc
 end
 
+-- Sistema alternativo de teleporte para o lugar mais próximo + tween normal
+function CheckNearestTeleporter(aI)
+    local MyLevel = game.Players.LocalPlayer.Data.Level.Value
+    local vcspos = aI.Position
+    local min = math.huge
+    local min2 = math.huge
+    local y = game.PlaceId
+    local World1, World2, World3
+    if y == 2753915549 then
+        World1 = true
+    elseif y == 4442272183 then
+        World2 = true
+    elseif y == 7449423635 then
+        World3 = true
+    end
+    local TableLocations = {}
+    if World3 then
+        TableLocations = {
+            ["Mansion"] = Vector3.new(-12471, 374, -7551),
+            ["Hydra"] = Vector3.new(5659, 1013, -341),
+            ["Caslte On The Sea"] = Vector3.new(-5092, 315, -3130),
+            ["Floating Turtle"] = Vector3.new(-12001, 332, -8861),
+            ["Beautiful Pirate"] = Vector3.new(5319, 23, -93),
+            ["Temple Of Time"] = Vector3.new(28286, 14897, 103)
+        }
+    elseif World2 then
+        TableLocations = {
+            ["Flamingo Mansion"] = Vector3.new(-317, 331, 597),
+            ["Flamingo Room"] = Vector3.new(2283, 15, 867),
+            ["Cursed Ship"] = Vector3.new(923, 125, 32853),
+            ["Zombie Island"] = Vector3.new(-6509, 83, -133)
+        }
+    elseif World1 then
+        TableLocations = {
+            ["Sky Island 1"] = Vector3.new(-4652, 873, -1754),
+            ["Sky Island 2"] = Vector3.new(-7895, 5547, -380),
+            ["Under Water Island"] = Vector3.new(61164, 5, 1820),
+            ["Under Water Island Entrace"] = Vector3.new(3865, 5, -1926)
+        }
+    end
+    local TableLocations2 = {}
+    for r, v in pairs(TableLocations) do
+        TableLocations2[r] = (v - vcspos).Magnitude
+    end
+    for r, v in pairs(TableLocations2) do
+        if v < min then
+            min = v
+            min2 = v
+        end
+    end
+    local choose
+    for r, v in pairs(TableLocations2) do
+        if v <= min then
+            choose = TableLocations[r]
+        end
+    end
+    local min3 = (vcspos - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+    if min2 <= min3 then
+        return choose
+    end
+end    
+
+function requestEntrance(aJ)
+    local args = {"requestEntrance", aJ}
+    game.ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))    
+    local oldcframe = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
+    local char = game.Players.LocalPlayer.Character.HumanoidRootPart
+    char.CFrame = CFrame.new(oldcframe.X, oldcframe.Y + 50, oldcframe.Z)    
+    task.wait(0.5)
+end   
+
+function topos(Tween_Pos)
+    pcall(function()
+        if game:GetService("Players").LocalPlayer 
+            and game:GetService("Players").LocalPlayer.Character 
+            and game:GetService("Players").LocalPlayer.Character:FindFirstChild("Humanoid") 
+            and game:GetService("Players").LocalPlayer.Character:FindFirstChild("HumanoidRootPart") 
+            and game:GetService("Players").LocalPlayer.Character.Humanoid.Health > 0 
+            and game:GetService("Players").LocalPlayer.Character.HumanoidRootPart then
+            if not TweenSpeed then
+                TweenSpeed = 350
+            end
+            local DefualtY = Tween_Pos.Y
+            local TargetY = Tween_Pos.Y
+            local targetCFrameWithDefualtY = CFrame.new(Tween_Pos.X, DefualtY, Tween_Pos.Z)
+            local targetPos = Tween_Pos.Position
+            local oldcframe = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
+            local Distance = (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude
+            if Distance <= 300 then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = Tween_Pos
+                return
+            end
+            local aM = CheckNearestTeleporter(Tween_Pos)
+            if aM then
+                pcall(function()
+                    if tween then tween:Cancel() end
+                end)
+                requestEntrance(aM)
+            end
+            local b1 = CFrame.new(
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
+                DefualtY,
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
+            )
+            local IngoreY = true
+            if IngoreY and (b1.Position - targetCFrameWithDefualtY.Position).Magnitude > 5 then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
+                    DefualtY,
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
+                )
+                local tweenfunc = {}
+                local aN = game:GetService("TweenService")
+                local aO = TweenInfo.new(
+                    (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude / TweenSpeed,
+                    Enum.EasingStyle.Linear
+                )
+                tween = aN:Create(
+                    game:GetService("Players").LocalPlayer.Character["HumanoidRootPart"],
+                    aO,
+                    {CFrame = targetCFrameWithDefualtY}
+                )
+                tween:Play()
+                function tweenfunc:Stop()
+                    tween:Cancel()
+                end
+                tween.Completed:Wait()
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
+                    TargetY,
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
+                )
+            else
+                local tweenfunc = {}
+                local aN = game:GetService("TweenService")
+                local aO = TweenInfo.new(
+                    (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude / TweenSpeed,
+                    Enum.EasingStyle.Linear
+                )
+                tween = aN:Create(
+                    game:GetService("Players").LocalPlayer.Character["HumanoidRootPart"],
+                    aO,
+                    {CFrame = Tween_Pos}
+                )
+                tween:Play()
+                function tweenfunc:Stop()
+                    tween:Cancel()
+                end
+                tween.Completed:Wait()
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
+                    TargetY,
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
+                )
+            end
+        end
+    end)
+end
+
+function StopTween(target)
+    pcall(function()
+        if not target then
+            getgenv().StopTween = true            
+            if tween then
+                tween:Cancel()
+                tween = nil
+            end            
+            local player = game:GetService("Players").LocalPlayer
+            local character = player and character
+            local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                humanoidRootPart.Anchored = true
+                task.wait(0.1)
+                humanoidRootPart.CFrame = humanoidRootPart.CFrame
+                humanoidRootPart.Anchored = false
+            end
+            local bodyClip = humanoidRootPart and humanoidRootPart:FindFirstChild("BodyClip")
+            if bodyClip then
+                bodyClip:Destroy()
+            end
+            getgenv().StopTween = false
+            getgenv().Clip = false
+        end
+    end)
+end
+
 function to(Pos)
     pcall(function()
         if lp.Character:FindFirstChild("HumanoidRootPart") and lp.Character:FindFirstChild("Humanoid").Health > 0 then
@@ -703,9 +889,9 @@ spawn(function()
                     if getgenv().targ.Character.Humanoid.Health > 0 then
                         local distance = (getgenv().targ.Character.HumanoidRootPart.CFrame.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position).Magnitude
                         if distance < 40 then
-                            TweenService2(CFrame.new(getgenv().targ.Character.HumanoidRootPart.Position + getgenv().targ.Character.HumanoidRootPart.CFrame.LookVector * 5, getgenv().targ.Character.HumanoidRootPart.Position))
+                            topos(CFrame.new(getgenv().targ.Character.HumanoidRootPart.Position + getgenv().targ.Character.HumanoidRootPart.CFrame.LookVector * 5, getgenv().targ.Character.HumanoidRootPart.Position))
                         else
-                            TweenService2(getgenv().targ.Character.HumanoidRootPart.CFrame*CFrame.new(0,10,0))
+                            topos(getgenv().targ.Character.HumanoidRootPart.CFrame*CFrame.new(0,10,0))
                         end
                     else
                         print("[Auto Bounty] Alvo morreu, procurando novo...")
