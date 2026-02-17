@@ -146,9 +146,39 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
 _G.Seriality = true
+
+local function HopServer()
+    pcall(function()
+        local placeId = game.PlaceId
+        local currentJobId = game.JobId
+        local cursor = nil
+        for _ = 1, 5 do
+            local url = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?sortOrder=Asc&limit=100" .. (cursor and ("&cursor=" .. cursor) or "")
+            local success, result = pcall(function()
+                return HttpService:JSONDecode(game:HttpGet(url))
+            end)
+            if not success or not result or not result.data then break end
+
+            for _, server in ipairs(result.data) do
+                if server.playing < server.maxPlayers and server.id ~= currentJobId then
+                    TeleportService:TeleportToPlaceInstance(placeId, server.id, player)
+                    return
+                end
+            end
+
+            if result.nextPageCursor then
+                cursor = result.nextPageCursor
+            else
+                break
+            end
+        end
+    end)
+end
 
 local function IsEntityAlive(entity)
     if not entity then return false end
@@ -741,9 +771,8 @@ function target()
             end
         end 
         if p == nil then
-            -- Nada encontrado: limpa lista de checados para não travar sem alvo
-            getgenv().checked = {}
-            getgenv().targ = nil
+            print("[Auto Bounty] Nenhum alvo encontrado, trocando de servidor...")
+            HopServer()
         else
             getgenv().targ = p
 
@@ -789,7 +818,7 @@ spawn(function()
                         getgenv().LastDamageTime = tick()
                     else
                         -- HP parado e estamos perto: se passou muito tempo, troca alvo
-                        if tick() - (getgenv().LastDamageTime or 0) > 7 then
+                        if tick() - (getgenv().LastDamageTime or 0) > 3.5 then
                             print("[Auto Bounty] Sem dano recente no alvo (perto), trocando de inimigo...")
                             SkipPlayer()
                         end
