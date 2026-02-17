@@ -681,29 +681,6 @@ function hasValue(array, targetString)
     return false
 end
 
--- Verifica se uma posição está dentro de alguma SafeZone em workspace._WorldOrigin.SafeZones
-local function isInSafeZone(position)
-    local worldOrigin = workspace:FindFirstChild("_WorldOrigin")
-    if not worldOrigin then return false end
-
-    local safeZonesFolder = worldOrigin:FindFirstChild("SafeZones")
-    if not safeZonesFolder then return false end
-
-    -- Procura QUALQUER BasePart dentro de SafeZones (filhos e descendentes)
-    for _, part in ipairs(safeZonesFolder:GetDescendants()) do
-        if part:IsA("BasePart") and part.Size then
-            local localPos = part.CFrame:PointToObjectSpace(position)
-            local halfSize = part.Size * 0.5
-
-            if math.abs(localPos.X) <= halfSize.X and math.abs(localPos.Y) <= halfSize.Y and math.abs(localPos.Z) <= halfSize.Z then
-                return true
-            end
-        end
-    end
-
-    return false
-end
-
 -- Fast Attack
 if getgenv().Setting.Click.FastClick then
     local CameraShaker = require(game.ReplicatedStorage.Util.CameraShaker)
@@ -747,11 +724,7 @@ function target()
         for i, v in pairs(game.Players:GetPlayers()) do 
             if v.Team ~= nil and (tostring(lp.Team) == "Pirates" or (tostring(v.Team) == "Pirates" and tostring(lp.Team) ~= "Pirates")) then
                 if v and v:FindFirstChild("Data") and ((getgenv().Setting.Skip.Fruit and hasValue(getgenv().Setting.Skip.FruitList, v.Data.DevilFruit.Value) == false) or not getgenv().Setting.Skip.Fruit) then
-                    if v ~= lp and v ~= getgenv().targ and v.Character and v.Character:FindFirstChild("HumanoidRootPart")
-                       and (v.Character.HumanoidRootPart.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude < d
-                       and hasValue(getgenv().checked, v) == false
-                       and v.Character.HumanoidRootPart.CFrame.Y <= 12000
-                       and not isInSafeZone(v.Character.HumanoidRootPart.Position) then
+                    if v ~= lp and v ~= getgenv().targ and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and (v.Character:FindFirstChild("HumanoidRootPart").CFrame.Position - game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart").CFrame.Position).Magnitude < d and hasValue(getgenv().checked, v) == false and v.Character.HumanoidRootPart.CFrame.Y <= 12000 then
                         if (tonumber(game.Players.LocalPlayer.Data.Level.Value) - 250) < v.Data.Level.Value  then
                             if v.leaderstats["Bounty/Honor"].Value >= getgenv().Setting.Hunt.Min and v.leaderstats["Bounty/Honor"].Value <= getgenv().Setting.Hunt.Max then 
                                 if (getgenv().Setting.Skip.V4 and not v.Character:FindFirstChild("RaceTransformed")) or not getgenv().Setting.Skip.V4 then
@@ -937,13 +910,6 @@ spawn(function()
         if getgenv().targ == nil then target() end
         pcall(function()
             if getgenv().targ and getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("HumanoidRootPart") and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                -- Se o alvo entrar em SafeZone depois de já ter sido escolhido, pula para outro
-                if isInSafeZone(getgenv().targ.Character.HumanoidRootPart.Position) then
-                    print("[Auto Bounty] Alvo entrou em Safe Zone, pulando para outro...")
-                    SkipPlayer()
-                    return
-                end
-
                 if game.Players.LocalPlayer.Character:FindFirstChild("Humanoid").Health > getgenv().Setting.SafeHealth.Health then
                     if getgenv().targ.Character.Humanoid.Health > 0 then
                         local distance = (getgenv().targ.Character.HumanoidRootPart.CFrame.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position).Magnitude
