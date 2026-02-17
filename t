@@ -508,6 +508,10 @@ function topos(Tween_Pos)
             and game:GetService("Players").LocalPlayer.Character:FindFirstChild("HumanoidRootPart") 
             and game:GetService("Players").LocalPlayer.Character.Humanoid.Health > 0 
             and game:GetService("Players").LocalPlayer.Character.HumanoidRootPart then
+            -- Cancela qualquer tween antigo para permitir atualização em tempo real
+            if tween then
+                pcall(function() tween:Cancel() end)
+            end
             if not TweenSpeed then
                 TweenSpeed = 350
             end
@@ -569,12 +573,6 @@ function topos(Tween_Pos)
                 function tweenfunc:Stop()
                     tween:Cancel()
                 end
-                tween.Completed:Wait()
-                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
-                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
-                    TargetY,
-                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
-                )
             else
                 local tweenfunc = {}
                 local aN = game:GetService("TweenService")
@@ -605,12 +603,6 @@ function topos(Tween_Pos)
                 function tweenfunc:Stop()
                     tween:Cancel()
                 end
-                tween.Completed:Wait()
-                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
-                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
-                    TargetY,
-                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
-                )
             end
         end
     end)
