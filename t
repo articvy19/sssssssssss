@@ -333,6 +333,7 @@ function CheckNearestTeleporter(aI)
             ["Caslte On The Sea"] = Vector3.new(-5092, 315, -3130),
             ["Floating Turtle"] = Vector3.new(-12001, 332, -8861),
             ["Beautiful Pirate"] = Vector3.new(5319, 23, -93),
+            -- Temple Of Time existe, mas não deve ser usado para alvos no chão
             ["Temple Of Time"] = Vector3.new(28286, 14897, 103)
         }
     elseif World2 then
@@ -350,6 +351,33 @@ function CheckNearestTeleporter(aI)
             ["Under Water Island Entrace"] = Vector3.new(3865, 5, -1926)
         }
     end
+    -- Se o inimigo estiver claramente em uma dessas ilhas, force usar o teleporte da própria ilha
+    if World3 then
+        local function near(pos, center, radius)
+            return (pos - center).Magnitude <= radius
+        end
+
+        local turtlePos = TableLocations["Floating Turtle"]
+        if turtlePos and near(vcspos, turtlePos, 4000) then
+            return turtlePos
+        end
+
+        local mansionPos = TableLocations["Mansion"]
+        if mansionPos and near(vcspos, mansionPos, 3500) then
+            return mansionPos
+        end
+
+        local castlePos = TableLocations["Caslte On The Sea"]
+        if castlePos and near(vcspos, castlePos, 3500) then
+            return castlePos
+        end
+
+        local hydraPos = TableLocations["Hydra"]
+        if hydraPos and near(vcspos, hydraPos, 3500) then
+            return hydraPos
+        end
+    end
+
     local TableLocations2 = {}
     for r, v in pairs(TableLocations) do
         TableLocations2[r] = (v - vcspos).Magnitude
