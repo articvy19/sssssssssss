@@ -726,7 +726,7 @@ function target()
                 if v and v:FindFirstChild("Data") and ((getgenv().Setting.Skip.Fruit and hasValue(getgenv().Setting.Skip.FruitList, v.Data.DevilFruit.Value) == false) or not getgenv().Setting.Skip.Fruit) then
                     if v ~= lp and v ~= getgenv().targ and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and (v.Character:FindFirstChild("HumanoidRootPart").CFrame.Position - game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart").CFrame.Position).Magnitude < d and hasValue(getgenv().checked, v) == false and v.Character.HumanoidRootPart.CFrame.Y <= 12000 then
                         if (tonumber(game.Players.LocalPlayer.Data.Level.Value) - 250) < v.Data.Level.Value  then
-                            if v.leaderstats["Bounty/Honor"].Value >= getgenv().Setting.Hunt.Min and v.leaderstats["Bounty/Honor"].Value <= getgenv().Setting.Hunt.Max and not hopserver then 
+                            if v.leaderstats["Bounty/Honor"].Value >= getgenv().Setting.Hunt.Min and v.leaderstats["Bounty/Honor"].Value <= getgenv().Setting.Hunt.Max then 
                                 if (getgenv().Setting.Skip.V4 and not v.Character:FindFirstChild("RaceTransformed")) or not getgenv().Setting.Skip.V4 then
                                     p = v 
                                     d = (v.Character.HumanoidRootPart.CFrame.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position).Magnitude 
@@ -740,15 +740,20 @@ function target()
                 end
             end
         end 
-        if p == nil then hopserver = true end 
-        getgenv().targ = p
-
-        -- Quando escolhe um novo alvo, inicia controle básico de HP
-        if getgenv().targ and getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("Humanoid") then
-            getgenv().LastTargetHealth = getgenv().targ.Character.Humanoid.Health
-            getgenv().LastDamageTime = tick()
+        if p == nil then
+            -- Nada encontrado: limpa lista de checados para não travar sem alvo
+            getgenv().checked = {}
+            getgenv().targ = nil
         else
-            getgenv().LastTargetHealth = nil
+            getgenv().targ = p
+
+            -- Quando escolhe um novo alvo, inicia controle básico de HP
+            if getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("Humanoid") then
+                getgenv().LastTargetHealth = getgenv().targ.Character.Humanoid.Health
+                getgenv().LastDamageTime = tick()
+            else
+                getgenv().LastTargetHealth = nil
+            end
         end
     end)
 end
