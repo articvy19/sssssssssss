@@ -299,7 +299,46 @@ getgenv().LastTargetHealth = nil
 getgenv().LastDamageTime = tick()
 getgenv().NoTargetTime = nil
 getgenv().DashEnabled = true
+getgenv().Status = "Iniciando..."
 wait(1)
+
+-- Painel simples de debug na tela para ver o estado do script
+task.spawn(function()
+    pcall(function()
+        local player = game.Players.LocalPlayer
+        local pg = player:WaitForChild("PlayerGui")
+        local gui = pg:FindFirstChild("AutoBountyDebug")
+        if not gui then
+            gui = Instance.new("ScreenGui")
+            gui.Name = "AutoBountyDebug"
+            gui.ResetOnSpawn = false
+            gui.IgnoreGuiInset = true
+            gui.Parent = pg
+        end
+
+        local label = gui:FindFirstChild("StatusLabel")
+        if not label then
+            label = Instance.new("TextLabel")
+            label.Name = "StatusLabel"
+            label.Size = UDim2.new(0, 350, 0, 22)
+            label.Position = UDim2.new(0, 10, 0, 10)
+            label.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+            label.BackgroundTransparency = 0.4
+            label.BorderSizePixel = 0
+            label.TextColor3 = Color3.fromRGB(0, 255, 0)
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.Font = Enum.Font.SourceSans
+            label.TextSize = 16
+            label.Parent = gui
+        end
+
+        while task.wait(0.3) do
+            pcall(function()
+                label.Text = "[Auto Bounty] " .. (getgenv().Status or "Sem status")
+            end)
+        end
+    end)
+end)
 
 --- Funções principais ---
 function bypass(Pos)   
@@ -790,6 +829,11 @@ end
 function SkipPlayer()
     getgenv().killed = getgenv().targ 
     table.insert(getgenv().checked, getgenv().targ)
+    if getgenv().targ and getgenv().targ.Name then
+        getgenv().Status = "Pulando alvo: " .. tostring(getgenv().targ.Name)
+    else
+        getgenv().Status = "Pulando alvo atual"
+    end
     getgenv().targ = nil
     target()
 end
@@ -799,6 +843,7 @@ function target()
         d = math.huge
         p = nil
         getgenv().targ = nil
+        getgenv().Status = "Buscando alvo..."
         for i, v in pairs(game.Players:GetPlayers()) do 
             if v.Team ~= nil and (tostring(lp.Team) == "Pirates" or (tostring(v.Team) == "Pirates" and tostring(lp.Team) ~= "Pirates")) then
                 if v and v:FindFirstChild("Data") and ((getgenv().Setting.Skip.Fruit and hasValue(getgenv().Setting.Skip.FruitList, v.Data.DevilFruit.Value) == false) or not getgenv().Setting.Skip.Fruit) then
@@ -825,6 +870,8 @@ function target()
             if not getgenv().NoTargetTime then
                 getgenv().NoTargetTime = tick()
             end
+            local elapsed = tick() - (getgenv().NoTargetTime or tick())
+            getgenv().Status = string.format("Sem alvo (%.0fs)", elapsed)
             if tick() - getgenv().NoTargetTime > 20 then
                 if CanHopServer() then
                     print("[Auto Bounty] Nenhum alvo por muito tempo, trocando de servidor...")
@@ -836,6 +883,12 @@ function target()
 
             -- Resetar contador de tempo sem alvo
             getgenv().NoTargetTime = nil
+
+            if getgenv().targ and getgenv().targ.Name then
+                getgenv().Status = "Alvo: " .. tostring(getgenv().targ.Name)
+            else
+                getgenv().Status = "Alvo definido"
+            end
 
             -- Quando escolhe um novo alvo, inicia controle básico de HP
             if getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("Humanoid") then
@@ -881,6 +934,7 @@ spawn(function()
                         -- HP parado e estamos perto: se passou muito tempo, troca alvo
                         if tick() - (getgenv().LastDamageTime or 0) > 5 then
                             print("[Auto Bounty] Sem dano recente no alvo (perto), trocando de inimigo...")
+                            getgenv().Status = "Sem dano no alvo, trocando..."
                             SkipPlayer()
                         end
                     end
@@ -1010,18 +1064,26 @@ spawn(function()
                             local hrp = getgenv().targ.Character.HumanoidRootPart
                             local offsetPos = hrp.Position + hrp.CFrame.LookVector * 5 + Vector3.new(0, 7, 0)
                             topos(CFrame.new(offsetPos, hrp.Position))
+                            if getgenv().targ and getgenv().targ.Name then
+                                getgenv().Status = string.format("Atacando: %s (%.0f)", getgenv().targ.Name, distance)
+                            end
                         else
                             -- Longe do inimigo: manter dash (Q) ativo durante o tween
                             getgenv().DashEnabled = true
                             topos(getgenv().targ.Character.HumanoidRootPart.CFrame*CFrame.new(0,10,0))
+                            if getgenv().targ and getgenv().targ.Name then
+                                getgenv().Status = string.format("Indo até: %s (%.0f)", getgenv().targ.Name, distance)
+                            end
                         end
                     else
                         print("[Auto Bounty] Alvo morreu, procurando novo...")
+                        getgenv().Status = "Alvo morreu, trocando..."
                         SkipPlayer()
                     end
                 else
                     -- Health baixa: apenas troca de alvo, sem subir para o céu
                     print("[Auto Bounty] Health baixa, trocando de alvo...")
+                    getgenv().Status = "HP baixo, trocando alvo"
                     SkipPlayer()
                 end
             end
