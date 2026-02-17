@@ -310,80 +310,6 @@ function bypass(Pos)
     end
 end
 
--- Sistema de tween baseado no hj.lua, usando bypass de ilha mais próxima
-function TweenService2(...)
-    local RealtargetPos = {...}
-    local targetPos = RealtargetPos[1]
-    local RealTarget
-
-    if typeof(targetPos) == "Vector3" then
-        RealTarget = CFrame.new(targetPos)
-    elseif typeof(targetPos) == "CFrame" then
-        RealTarget = targetPos
-    elseif type(targetPos) == "number" then
-        RealTarget = CFrame.new(unpack(RealtargetPos))
-    else
-        return
-    end
-
-    if not lp or not lp.Character then return end
-
-    -- Garante que o personagem está vivo antes de mover (para voltar pro PVP após morrer/resetar)
-    local humanoid = lp.Character:FindFirstChild("Humanoid")
-    if not humanoid or humanoid.Health <= 0 then
-        repeat
-            task.wait()
-        until lp.Character and lp.Character:FindFirstChild("Humanoid") and lp.Character.Humanoid.Health > 0
-        task.wait(0.75)
-    end
-
-    local root = lp.Character:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-
-    local Distance = (root.Position - RealTarget.Position).Magnitude
-
-    -- Se estiver muito perto, apenas teleporta direto
-    if Distance <= 150 then
-        pcall(function()
-            root.CFrame = RealTarget
-        end)
-        return
-    end
-
-    -- Teleporte para ilha mais próxima usando o sistema existente de bypass
-    if Distance > distbyp then
-        pcall(function()
-            bypass(RealTarget)
-        end)
-    end
-
-    local info = TweenInfo.new(Distance / 315, Enum.EasingStyle.Linear)
-    local tween = game:GetService("TweenService"):Create(root, info, {CFrame = RealTarget})
-    tween:Play()
-
-    local tweenfunc = {}
-
-    function tweenfunc:Cancel()
-        if tween then
-            tween:Cancel()
-        end
-    end
-
-    function tweenfunc:Wait()
-        if tween then
-            tween.Completed:Wait()
-        end
-    end
-
-    function tweenfunc:Pause()
-        if tween then
-            tween:Pause()
-        end
-    end
-
-    return tweenfunc
-end
-
 -- Sistema alternativo de teleporte para o lugar mais próximo + tween normal
 function CheckNearestTeleporter(aI)
     local MyLevel = game.Players.LocalPlayer.Data.Level.Value
@@ -826,14 +752,26 @@ spawn(function()
                             for i, v in pairs(game.Players.LocalPlayer.Character:GetChildren()) do 
                                 if v:IsA("Tool") and v.ToolTip == "Blox Fruit" then
                                     if getgenv().Setting.Fruit.Enable then
-                                        Click()
+                                        local skillsGui = game.Players.LocalPlayer.PlayerGui.Main:FindFirstChild("Skills")
+                                        if skillsGui and skillsGui:FindFirstChild(v.Name) and skillsGui[v.Name]:FindFirstChild("C") and skillsGui[v.Name].C.Cooldown.AbsoluteSize.X <= 0 and getgenv().Setting.Fruit.C.Enable then
+                                            l = getgenv().Setting.Fruit.C.HoldTime
+                                            down("C")
+                                        else
+                                            Click()
+                                        end
                                     end
                                 end
                             end
                         else
                             for i, v in pairs(game.Players.LocalPlayer.Character:GetChildren()) do
                                 if v:IsA("Tool") and v.ToolTip == "Blox Fruit" then
-                                    Click()
+                                    local skillsGui = game.Players.LocalPlayer.PlayerGui.Main:FindFirstChild("Skills")
+                                    if skillsGui and skillsGui:FindFirstChild(v.Name) and skillsGui[v.Name]:FindFirstChild("C") and skillsGui[v.Name].C.Cooldown.AbsoluteSize.X <= 0 and getgenv().Setting.Fruit.C.Enable then
+                                        l = getgenv().Setting.Fruit.C.HoldTime
+                                        down("C")
+                                    else
+                                        Click()
+                                    end
                                 end
                             end
                         end
