@@ -518,13 +518,6 @@ local function TweenToCFrame(targetCFrame)
         local currentPos = hrp.Position
         local distance = (targetPos - currentPos).Magnitude
 
-        -- Se já estamos muito perto, apenas seta o CFrame
-        if distance <= 150 then
-            if tween then pcall(function() tween:Cancel() end) end
-            hrp.CFrame = safeTarget
-            return
-        end
-
         -- Usa o teleporte mais próximo do inimigo antes de tweenar (similar ao hj.lua)
         local teleporterPos = CheckNearestTeleporter(safeTarget)
         if teleporterPos then
@@ -547,7 +540,7 @@ local function TweenToCFrame(targetCFrame)
     end)
 end
 
--- Move até o player alvo “colando” perto dele (teleporte rápido)
+-- Move até o player alvo usando tween (voando até ele)
 local function MoveToTargetHJ(targetPlayer)
     pcall(function()
         if not targetPlayer or not targetPlayer.Character then return end
@@ -557,35 +550,22 @@ local function MoveToTargetHJ(targetPlayer)
         local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
         if not enemyHRP or not myHRP then return end
 
-        local enemyPos = enemyHRP.Position
-        local myPos = myHRP.Position
-        local distance = (enemyPos - myPos).Magnitude
+        local distance = (enemyHRP.Position - myHRP.Position).Magnitude
+        local destCF
 
-        -- Se já estamos muito colados, não faz nada
-        if distance < 3 then return end
-
-        -- Cancela qualquer tween antigo para não “travar”
-        if tween then
-            pcall(function() tween:Cancel() end)
-            tween = nil
-        end
-
-        local offset
         if distance < 40 then
-            -- Perto: fica um pouco à frente e acima do alvo
-            offset = enemyHRP.CFrame.LookVector * 5 + Vector3.new(0, 5, 0)
+            -- Fica um pouco à frente e acima do alvo (estilo hj.lua)
+            destCF = CFrame.new(
+                enemyHRP.Position + enemyHRP.CFrame.LookVector * 5 + Vector3.new(0, 5, 0),
+                enemyHRP.Position
+            )
         else
-            -- Longe: fica bem acima do alvo e vem descendo
-            offset = Vector3.new(0, 20, 0)
+            -- Quando longe, voa para cima do alvo
+            destCF = enemyHRP.CFrame * CFrame.new(0, 20, 0)
         end
 
-        local destPos = enemyPos + offset
-        if destPos.Y < 5 then
-            destPos = Vector3.new(destPos.X, 5, destPos.Z)
-        end
-
-        -- Teleporta o HRP para perto do inimigo olhando pra ele
-        myHRP.CFrame = CFrame.new(destPos, enemyPos)
+        -- Usa tween suave até o destino
+        TweenToCFrame(destCF)
     end)
 end
 
