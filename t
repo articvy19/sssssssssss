@@ -551,12 +551,27 @@ end
 local function MoveToTargetHJ(targetPlayer)
     pcall(function()
         if not targetPlayer or not targetPlayer.Character then return end
-        local hrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
+        local enemyHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local myChar = lp.Character
+        local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        if not enemyHRP or not myHRP then return end
 
-        -- Mesmo offset usado em AttackNearestPlayer do hj.lua (um pouco acima e à frente do alvo)
-        local targetCF = hrp.CFrame * CFrame.new(0, 5.4, 5.5)
-        TweenToCFrame(targetCF)
+        local distance = (enemyHRP.Position - myHRP.Position).Magnitude
+        local destCF
+
+        if distance < 40 then
+            -- Posição levemente à frente/alto do alvo (estilo hj.lua)
+            destCF = CFrame.new(
+                enemyHRP.Position + enemyHRP.CFrame.LookVector * 5,
+                enemyHRP.Position
+            )
+        else
+            -- Quando longe, fica um pouco acima do alvo
+            destCF = enemyHRP.CFrame * CFrame.new(0, 10, 0)
+        end
+
+        -- Usa o sistema de movimento já existente (to) com bypass + MakeSafeCFrame
+        to(destCF)
     end)
 end
 
