@@ -286,6 +286,7 @@ getgenv().pl = p:GetPlayers()
 getgenv().LastTargetHealth = nil
 getgenv().LastDamageTime = tick()
 getgenv().Blacklist = getgenv().Blacklist or {}
+getgenv().HasTargetedPlayer = getgenv().HasTargetedPlayer or false
 wait(1)
 
 local function IsBlacklisted(plr)
@@ -887,8 +888,8 @@ function target()
             getgenv().checked = {}
             getgenv().targ = nil
 
-            -- Se realmente não tem mais ninguém válido no servidor, tenta Hop
-            if #game:GetService("Players"):GetPlayers() > 1 then
+            -- Só tenta Hop se já tivemos pelo menos um alvo neste servidor
+            if getgenv().HasTargetedPlayer and #game:GetService("Players"):GetPlayers() > 1 then
                 task.spawn(function()
                     task.wait(1)
                     -- Recheca o Bounty Risk na hora do Hop para evitar race condition
@@ -901,6 +902,7 @@ function target()
             end
         else
             getgenv().targ = p
+            getgenv().HasTargetedPlayer = true
 
             -- Quando escolhe um novo alvo, inicia controle básico de HP
             if getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("Humanoid") then
