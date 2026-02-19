@@ -101,7 +101,7 @@ print("[Auto Bounty] Iniciando...")
 if game:GetService("Players").LocalPlayer.PlayerGui.Main:FindFirstChild("ChooseTeam") then
     repeat wait()
         if game:GetService("Players").LocalPlayer.PlayerGui:WaitForChild("Main").ChooseTeam.Visible == true then
-            if getgenv().Setting.Hunt.Team == "Marines" then
+            if getgenv().Setting.Hunt.Team == "Pirates" then
                 game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("SetTeam", "Marines")
             else
                 game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("SetTeam", "Pirates")
@@ -111,7 +111,7 @@ if game:GetService("Players").LocalPlayer.PlayerGui.Main:FindFirstChild("ChooseT
 end
 
 --- Check World/Tween + Bypass
-if game.PlaceId == 7449423635 then
+if game.PlaceId == 7449423635 or 100117331123089 then
     World3 = true
 else
     game.Players.LocalPlayer:Kick("Only Support BF Sea 3")
@@ -146,45 +146,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local HttpService = game:GetService("HttpService")
-local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
 _G.Seriality = true
-
--- Quando morrer/respawnar, reseta alvos e volta a ativar o sistema
-player.CharacterAdded:Connect(function(char)
-    task.spawn(function()
-        repeat task.wait() until char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart")
-        getgenv().targ = nil
-        getgenv().LastTargetHealth = nil
-        getgenv().LastDamageTime = tick()
-        getgenv().checked = {}
-        pcall(function()
-            StopTween()
-        end)
-        pcall(function()
-            buso()
-        end)
-        print("[Auto Bounty] Respawn detectado, retomando caça...")
-    end)
-end)
-
--- Hop para outro servidor público
-local function HopServer()
-    pcall(function()
-        local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", game.PlaceId)
-        local response = HttpService:JSONDecode(game:HttpGet(url))
-        if response and response.data then
-            for _, server in ipairs(response.data) do
-                if type(server) == "table" and server.id ~= game.JobId and server.playing < server.maxPlayers then
-                    TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id)
-                    break
-                end
-            end
-        end
-    end)
-end
 
 local function IsEntityAlive(entity)
     if not entity then return false end
@@ -285,64 +249,7 @@ getgenv().checked = {}
 getgenv().pl = p:GetPlayers()
 getgenv().LastTargetHealth = nil
 getgenv().LastDamageTime = tick()
-getgenv().Blacklist = getgenv().Blacklist or {}
-getgenv().HasTargetedPlayer = getgenv().HasTargetedPlayer or false
 wait(1)
-
-local function IsBlacklisted(plr)
-    if not plr or not plr.Name then return false end
-    for _, name in ipairs(getgenv().Blacklist) do
-        if name == plr.Name then
-            return true
-        end
-    end
-    return false
-end
-
-local function AddToBlacklist(plr)
-    if not plr or not plr.Name then return end
-    if not getgenv().Blacklist then
-        getgenv().Blacklist = {}
-    end
-    if not IsBlacklisted(plr) then
-        table.insert(getgenv().Blacklist, plr.Name)
-    end
-end
-
-local function IsBountyRiskActive()
-    local lp = game.Players.LocalPlayer
-    if not lp then return false end
-    local gui = lp:FindFirstChild("PlayerGui")
-    if not gui then return false end
-    local main = gui:FindFirstChild("Main")
-    if not main then return false end
-    local inCombat = main:FindFirstChild("InCombat")
-    if not inCombat or not inCombat.Visible then return false end
-
-    local function hasRiskText(obj)
-        if obj and (obj:IsA("TextLabel") or obj:IsA("TextButton")) then
-            local t = string.lower(obj.Text or "")
-            if string.find(t, "risk") then
-                return true
-            end
-        end
-        return false
-    end
-
-    -- Verifica se o próprio objeto InCombat tem o texto
-    if hasRiskText(inCombat) then
-        return true
-    end
-
-    -- Procura em qualquer TextLabel/TextButton filho (mais robusto)
-    for _, descendant in ipairs(inCombat:GetDescendants()) do
-        if hasRiskText(descendant) then
-            return true
-        end
-    end
-
-    return false
-end
 
 --- Funções principais ---
 function bypass(Pos)   
@@ -405,7 +312,7 @@ function bypass(Pos)
     end
 end
 
--- Sistema alternativo de teleporte para o lugar mais próximo + tween normal (versão hj)
+-- Sistema alternativo de teleporte para o lugar mais próximo + tween normal
 function CheckNearestTeleporter(aI)
     local MyLevel = game.Players.LocalPlayer.Data.Level.Value
     local vcspos = aI.Position
@@ -417,7 +324,7 @@ function CheckNearestTeleporter(aI)
         World1 = true
     elseif y == 4442272183 then
         World2 = true
-    elseif y == 7449423635 then
+    elseif y == 7449423635 or y == 100117331123089 then
         World3 = true
     end
     local TableLocations = {}
@@ -445,6 +352,33 @@ function CheckNearestTeleporter(aI)
             ["Under Water Island Entrace"] = Vector3.new(3865, 5, -1926)
         }
     end
+    -- Se o inimigo estiver claramente em uma dessas ilhas, force usar o teleporte da própria ilha
+    if World3 then
+        local function near(pos, center, radius)
+            return (pos - center).Magnitude <= radius
+        end
+
+        local turtlePos = TableLocations["Floating Turtle"]
+        if turtlePos and near(vcspos, turtlePos, 4000) then
+            return turtlePos
+        end
+
+        local mansionPos = TableLocations["Mansion"]
+        if mansionPos and near(vcspos, mansionPos, 3500) then
+            return mansionPos
+        end
+
+        local castlePos = TableLocations["Caslte On The Sea"]
+        if castlePos and near(vcspos, castlePos, 3500) then
+            return castlePos
+        end
+
+        local hydraPos = TableLocations["Hydra"]
+        if hydraPos and near(vcspos, hydraPos, 3500) then
+            return hydraPos
+        end
+    end
+
     local TableLocations2 = {}
     for r, v in pairs(TableLocations) do
         TableLocations2[r] = (v - vcspos).Magnitude
@@ -461,10 +395,15 @@ function CheckNearestTeleporter(aI)
             choose = TableLocations[r]
         end
     end
-    local char = game.Players.LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return choose end
-    local min3 = (vcspos - hrp.Position).Magnitude
+    local min3 = (vcspos - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+
+    -- No Terceiro Mar, sempre use algum teleporte (o mais
+    -- próximo do inimigo), para garantir que também funcione
+    -- quando o alvo estiver na Turtle.
+    if World3 and choose then
+        return choose
+    end
+
     if min2 <= min3 then
         return choose
     end
@@ -479,71 +418,6 @@ function requestEntrance(aJ)
     task.wait(0.5)
 end   
 
--- Movimento estilo hj.lua: tween direto até um CFrame alvo, usando teleporte próximo quando existir
-local function TweenToCFrame(targetCFrame)
-    pcall(function()
-        if not lp or not lp.Character then return end
-        local hrp = lp.Character:FindFirstChild("HumanoidRootPart")
-        local humanoid = lp.Character:FindFirstChild("Humanoid")
-        if not hrp or not humanoid or humanoid.Health <= 0 then return end
-
-        -- Garante altura segura (anti água/void)
-        local safeTarget = MakeSafeCFrame(targetCFrame)
-        local targetPos = safeTarget.Position
-        local currentPos = hrp.Position
-        local distance = (targetPos - currentPos).Magnitude
-
-        -- Usa o teleporte mais próximo do inimigo antes de tweenar (similar ao hj.lua)
-        local teleporterPos = CheckNearestTeleporter(safeTarget)
-        if teleporterPos then
-            pcall(function()
-                if tween then tween:Cancel() end
-            end)
-            requestEntrance(teleporterPos)
-        end
-
-        local tweenService = game:GetService("TweenService")
-        local speed = 315
-        local tweenInfo = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
-
-        if tween then
-            pcall(function() tween:Cancel() end)
-        end
-
-        tween = tweenService:Create(hrp, tweenInfo, {CFrame = safeTarget})
-        tween:Play()
-    end)
-end
-
--- Move até o player alvo usando tween (voando até ele)
-local function MoveToTargetHJ(targetPlayer)
-    pcall(function()
-        if not targetPlayer or not targetPlayer.Character then return end
-
-        local enemyHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-        local myChar = lp.Character
-        local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-        if not enemyHRP or not myHRP then return end
-
-        local distance = (enemyHRP.Position - myHRP.Position).Magnitude
-        local destCF
-
-        if distance < 40 then
-            -- Fica um pouco à frente e acima do alvo (estilo hj.lua)
-            destCF = CFrame.new(
-                enemyHRP.Position + enemyHRP.CFrame.LookVector * 5 + Vector3.new(0, 5, 0),
-                enemyHRP.Position
-            )
-        else
-            -- Quando longe, voa para cima do alvo
-            destCF = enemyHRP.CFrame * CFrame.new(0, 20, 0)
-        end
-
-        -- Usa tween suave até o destino
-        TweenToCFrame(destCF)
-    end)
-end
-
 function topos(Tween_Pos)
     pcall(function()
         if game:GetService("Players").LocalPlayer 
@@ -555,28 +429,29 @@ function topos(Tween_Pos)
             if not TweenSpeed then
                 TweenSpeed = 350
             end
-            DefualtY = Tween_Pos.Y
-            TargetY = Tween_Pos.Y
-            targetCFrameWithDefualtY = CFrame.new(Tween_Pos.X, DefualtY, Tween_Pos.Z)
-            targetPos = Tween_Pos.Position
-            oldcframe = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
-            Distance = (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude
+            local DefualtY = Tween_Pos.Y
+            local TargetY = Tween_Pos.Y
+            local targetCFrameWithDefualtY = CFrame.new(Tween_Pos.X, DefualtY, Tween_Pos.Z)
+            local targetPos = Tween_Pos.Position
+            local oldcframe = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
+            local Distance = (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude
             if Distance <= 300 then
                 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = Tween_Pos
+                return
             end
             local aM = CheckNearestTeleporter(Tween_Pos)
             if aM then
                 pcall(function()
-                    tween:Cancel()
+                    if tween then tween:Cancel() end
                 end)
                 requestEntrance(aM)
             end
-            b1 = CFrame.new(
+            local b1 = CFrame.new(
                 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
                 DefualtY,
                 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
             )
-            IngoreY = true
+            local IngoreY = true
             if IngoreY and (b1.Position - targetCFrameWithDefualtY.Position).Magnitude > 5 then
                 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
                     game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
@@ -627,10 +502,6 @@ function topos(Tween_Pos)
                     game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
                 )
             end
-            if not tween then
-                return tween
-            end
-            return tweenfunc
         end
     end)
 end
@@ -644,7 +515,7 @@ function StopTween(target)
                 tween = nil
             end            
             local player = game:GetService("Players").LocalPlayer
-            local character = player and player.Character
+            local character = player and character
             local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
             if humanoidRootPart then
                 humanoidRootPart.Anchored = true
@@ -684,8 +555,7 @@ function to(Pos)
             end
             pcall(function()
                 if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
-	                local safePos = MakeSafeCFrame(Pos)
-	                tween = game:GetService("TweenService"):Create(game.Players.LocalPlayer.Character.HumanoidRootPart,TweenInfo.new(Distance / Speed, Enum.EasingStyle.Linear),{CFrame = safePos})
+                    tween = game:GetService("TweenService"):Create(game.Players.LocalPlayer.Character.HumanoidRootPart,TweenInfo.new(Distance / Speed, Enum.EasingStyle.Linear),{CFrame = Pos})
                     if tween then
                         tween:Play()
                     end
@@ -701,8 +571,7 @@ function to(Pos)
             if game.Players.LocalPlayer.Character.Humanoid.Sit == true then
                 game.Players.LocalPlayer.Character.Humanoid.Sit = false
             end
-	        local finalSafe = MakeSafeCFrame(Pos)
-	        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X, finalSafe.Y, game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z)
+            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X, Pos.Y, game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z)
         end
     end)
 end
@@ -810,36 +679,6 @@ if getgenv().Setting.Another.WhiteScreen then
     game.RunService:Set3dRenderingEnabled(false)
 end
 
--- WalkWater sempre ativo (evitar cair na água)
-_G.WalkWater = true
-
-spawn(function()
-    while task.wait(0.5) do
-        pcall(function()
-            local map = workspace:FindFirstChild("Map")
-            if map and map:FindFirstChild("WaterBase-Plane") then
-                map["WaterBase-Plane"].Size = Vector3.new(1000, 112, 1000)
-            end
-        end)
-    end
-        -- Dash infinito (simula tecla Q o tempo todo)
-        _G.InfiniteDash = true
-
-        spawn(function()
-            while task.wait(0.25) do
-                pcall(function()
-                    if _G.InfiniteDash and lp and lp.Character and lp.Character:FindFirstChild("Humanoid") and lp.Character.Humanoid.Health > 0 then
-                        local vim = game:GetService("VirtualInputManager")
-                        vim:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
-                        task.wait(0.05)
-                        vim:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
-                    end
-                end)
-            end
-        end)
-
-end)
-
 function hasValue(array, targetString)
     for _, value in ipairs(array) do
         if value == targetString then
@@ -849,13 +688,38 @@ function hasValue(array, targetString)
     return false
 end
 
--- Força o destino dos tweens a não ficar muito baixo (água/void)
-local function MakeSafeCFrame(cf)
-    local x, y, z = cf.X, cf.Y, cf.Z
-    if y < 5 then
-        y = 5
+-- Verifica se o player ainda é um alvo válido (no jogo, com personagem vivo)
+local function IsValidPlayerTarget(plr)
+    if not plr then return false end
+    if plr.Parent ~= game:GetService("Players") then return false end
+    local char = plr.Character
+    if not char then return false end
+    -- Demais checagens (Humanoid, HRP, Health) são feitas nos loops
+    -- para evitar ficar sem alvo por causa de delay de spawn/carregamento.
+    return true
+end
+
+-- Safezones: se o inimigo estiver dentro de uma dessas áreas,
+-- ele não será escolhido como NOVO alvo. Se já for o alvo atual,
+-- o script continua atacando normalmente.
+local SAFEZONE_RADIUS = 20 -- raio em studs ao redor do centro da safezone
+
+local SafeZones = {
+    CFrame.new(-5097.72656, 311.696777, -2189.77832, 0.374604106, 0, -0.92718488, 0, 1, 0, 0.92718488, 0, 0.374604106),
+    CFrame.new(-265.647003, 3.42700195, 5223.68799, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+    CFrame.new(-5012.70996, 398.437012, -3007.46411, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+    CFrame.new(-16173.8379, 7.90499878, 453.493988, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+    CFrame.new(-5238.39697, 311.619934, -2132.94409, 0.374604106, 0, -0.92718488, 0, 1, 0, 0.92718488, 0, 0.374604106),
+    CFrame.new(-12547.71, 290.139008, -7487.06494, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+}
+
+local function IsInSafeZone(pos)
+    for _, cf in ipairs(SafeZones) do
+        if (pos - cf.Position).Magnitude <= SAFEZONE_RADIUS then
+            return true
+        end
     end
-    return CFrame.new(x, y, z)
+    return false
 end
 
 -- Fast Attack
@@ -875,7 +739,7 @@ if getgenv().Setting.Click.FastClick then
                         y.activeController.active = false
                         y.activeController.timeToNextBlock = 0
                         y.activeController.focusStart = 1655503339.0980349
-                        y.activcController.increment = 1
+                        y.activeController.increment = 1
                         y.activeController.blocking = false
                         y.activeController.attacking = false
                         y.activeController.humanoid.AutoRotate = true
@@ -889,7 +753,6 @@ end
 function SkipPlayer()
     getgenv().killed = getgenv().targ 
     table.insert(getgenv().checked, getgenv().targ)
-    AddToBlacklist(getgenv().targ)
     getgenv().targ = nil
     target()
 end
@@ -902,7 +765,14 @@ function target()
         for i, v in pairs(game.Players:GetPlayers()) do 
             if v.Team ~= nil and (tostring(lp.Team) == "Pirates" or (tostring(v.Team) == "Pirates" and tostring(lp.Team) ~= "Pirates")) then
                 if v and v:FindFirstChild("Data") and ((getgenv().Setting.Skip.Fruit and hasValue(getgenv().Setting.Skip.FruitList, v.Data.DevilFruit.Value) == false) or not getgenv().Setting.Skip.Fruit) then
-                    if v ~= lp and v ~= getgenv().targ and not IsBlacklisted(v) and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and (v.Character:FindFirstChild("HumanoidRootPart").CFrame.Position - game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart").CFrame.Position).Magnitude < d and hasValue(getgenv().checked, v) == false and v.Character.HumanoidRootPart.CFrame.Y <= 12000 then
+                    local hrp = v.Character and v.Character:FindFirstChild("HumanoidRootPart")
+                    local myHrp = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if v ~= lp and v ~= getgenv().targ and IsValidPlayerTarget(v)
+                       and hrp and myHrp
+                       and not IsInSafeZone(hrp.Position)
+                       and (hrp.Position - myHrp.Position).Magnitude < d
+                       and hasValue(getgenv().checked, v) == false
+                       and hrp.Position.Y <= 12000 then
                         if (tonumber(game.Players.LocalPlayer.Data.Level.Value) - 250) < v.Data.Level.Value  then
                             if v.leaderstats["Bounty/Honor"].Value >= getgenv().Setting.Hunt.Min and v.leaderstats["Bounty/Honor"].Value <= getgenv().Setting.Hunt.Max then 
                                 if (getgenv().Setting.Skip.V4 and not v.Character:FindFirstChild("RaceTransformed")) or not getgenv().Setting.Skip.V4 then
@@ -919,25 +789,11 @@ function target()
             end
         end 
         if p == nil then
-            -- Nada encontrado: limpa lista de checados
+            -- Nada encontrado: limpa lista de checados para não travar sem alvo
             getgenv().checked = {}
             getgenv().targ = nil
-
-            -- Só tenta Hop se já tivemos pelo menos um alvo neste servidor
-            if getgenv().HasTargetedPlayer and #game:GetService("Players"):GetPlayers() > 1 then
-                task.spawn(function()
-                    task.wait(1)
-                    -- Recheca o Bounty Risk na hora do Hop para evitar race condition
-                    if not IsBountyRiskActive() then
-                        HopServer()
-                    else
-                        print("[Auto Bounty] Bounty Risk ativo, cancelando Hop.")
-                    end
-                end)
-            end
         else
             getgenv().targ = p
-            getgenv().HasTargetedPlayer = true
 
             -- Quando escolhe um novo alvo, inicia controle básico de HP
             if getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("Humanoid") then
@@ -950,6 +806,21 @@ function target()
     end)
 end
 
+-- Se o alvo sair do jogo, limpa e procura outro
+game:GetService("Players").PlayerRemoving:Connect(function(plr)
+    if plr == getgenv().targ then
+        print("[Auto Bounty] Alvo saiu do servidor, procurando novo...")
+        getgenv().targ = nil
+        target()
+    end
+    for i, v in ipairs(getgenv().checked) do
+        if v == plr then
+            table.remove(getgenv().checked, i)
+            break
+        end
+    end
+end)
+
 -- Monitor global: se estivermos PERTO do alvo e o HP dele não mudar
 -- por alguns segundos, pula para o próximo inimigo
 spawn(function()
@@ -957,6 +828,12 @@ spawn(function()
         pcall(function()
             local t = getgenv().targ
             local me = game.Players.LocalPlayer
+            -- Se o alvo atual ficar inválido (saiu, morreu, etc), limpa para forçar retarget
+            if t and not IsValidPlayerTarget(t) then
+                getgenv().targ = nil
+                getgenv().LastTargetHealth = nil
+                return
+            end
             if t and t.Character and t.Character:FindFirstChild("Humanoid")
                and me.Character and me.Character:FindFirstChild("HumanoidRootPart")
                and t.Character:FindFirstChild("HumanoidRootPart") then
@@ -1021,6 +898,9 @@ end)
 -- Loop de uso de habilidades e ataques
 spawn(function()
     while task.wait() do
+        if not IsValidPlayerTarget(getgenv().targ) then
+            getgenv().targ = nil
+        end
         if getgenv().targ == nil then target() end
         pcall(function()
             if getgenv().targ and getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("HumanoidRootPart") and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -1045,9 +925,9 @@ spawn(function()
                             for i, v in pairs(game.Players.LocalPlayer.Character:GetChildren()) do
                                 if v:IsA("Tool") and v.ToolTip == "Blox Fruit" then
                                     local skillsGui = game.Players.LocalPlayer.PlayerGui.Main:FindFirstChild("Skills")
-                                    if skillsGui and skillsGui:FindFirstChild(v.Name) and skillsGui[v.Name]:FindFirstChild("C") and skillsGui[v.Name].C.Cooldown.AbsoluteSize.X <= 0 and getgenv().Setting.Fruit.C.Enable then
+                                    if skillsGui and skillsGui:FindFirstChild(v.Name) and skillsGui[v.Name]:FindFirstChild("x") and skillsGui[v.Name].C.Cooldown.AbsoluteSize.X <= 0 and getgenv().Setting.Fruit.x.Enable then
                                         l = getgenv().Setting.Fruit.C.HoldTime
-                                        down("C")
+                                        down("x")
                                     else
                                         Click()
                                     end
@@ -1099,18 +979,20 @@ end)
 -- Loop principal do farm (movimento)
 spawn(function()
     while task.wait(0.05) do
+        if not IsValidPlayerTarget(getgenv().targ) then
+            getgenv().targ = nil
+        end
         if getgenv().targ == nil then target() end
         pcall(function()
             if getgenv().targ and getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("HumanoidRootPart") and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
                 if game.Players.LocalPlayer.Character:FindFirstChild("Humanoid").Health > getgenv().Setting.SafeHealth.Health then
                     if getgenv().targ.Character.Humanoid.Health > 0 then
-						-- Movimento usando sistema completo do tween.lua (CheckNearestTeleporter + topos)
-						local enemyHRP = getgenv().targ.Character:FindFirstChild("HumanoidRootPart")
-						if enemyHRP then
-							-- Posição um pouco acima/na frente do inimigo (voando até ele)
-							local dest = enemyHRP.CFrame * CFrame.new(0, 5.4, 5.5)
-							topos(dest)
-						end
+                        local distance = (getgenv().targ.Character.HumanoidRootPart.CFrame.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position).Magnitude
+                        if distance < 40 then
+                            topos(CFrame.new(getgenv().targ.Character.HumanoidRootPart.Position + getgenv().targ.Character.HumanoidRootPart.CFrame.LookVector * 5, getgenv().targ.Character.HumanoidRootPart.Position))
+                        else
+                            topos(getgenv().targ.Character.HumanoidRootPart.CFrame*CFrame.new(0,10,0))
+                        end
                     else
                         print("[Auto Bounty] Alvo morreu, procurando novo...")
                         SkipPlayer()
@@ -1128,181 +1010,3 @@ end)
 print("[Auto Bounty] Farm iniciado com sucesso!")
 print("[Auto Bounty] Procurando alvos...")
 print("[Auto Bounty] Sistema de combate ativado!")
-
--- =========================================
--- NOVO SISTEMA DE AIMBOT SKILL (SEMPRE ATIVO)
--- Substitui a função antiga de acerto por skill
--- =========================================
-
-_G.AimMethod = true
-ABmethod = "AimBots Skill"
-_G.TpPly = false
-_G.PlayersList = nil
-
--- Atualizar lista de players
-PlrList = {}
-for _,v in pairs(game:GetService("Players"):GetPlayers()) do
-    table.insert(PlrList, v.Name)
-end
-
-game:GetService("Players").PlayerAdded:Connect(function(p)
-    table.insert(PlrList, p.Name)
-end)
-
-game:GetService("Players").PlayerRemoving:Connect(function(p)
-    for i,v in ipairs(PlrList) do
-        if v == p.Name then
-            table.remove(PlrList, i)
-            break
-        end
-    end
-end)
-
--- Aimbot Skill sempre ligado (mesma lógica do TXT)
-task.spawn(function()
-    while task.wait() do
-        pcall(function()
-            if _G.AimMethod and ABmethod == "AimBots Skill" then
-                if _G.PlayersList then
-                    local v = game:GetService("Players"):FindFirstChild(_G.PlayersList)
-                    if v and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Team ~= lp.Team then
-                        MousePos = v.Character.HumanoidRootPart.Position
-                    end
-                elseif getgenv().targ and getgenv().targ.Character then
-                    MousePos = getgenv().targ.Character.HumanoidRootPart.Position
-                end
-            end
-        end)
-    end
-end)
-
--- Auto Aimbot sempre ativo
-task.spawn(function()
-    while task.wait() do
-        pcall(function()
-            if _G.AimMethod and ABmethod == "Auto Aimbots" then
-                local MaxDistance = math.huge
-                for _,v in pairs(game:GetService("Players"):GetPlayers()) do
-                    if v ~= lp and v.Team ~= lp.Team and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
-                        local dist = (v.Character.HumanoidRootPart.Position - lp.Character.HumanoidRootPart.Position).Magnitude
-                        if dist < MaxDistance then
-                            MaxDistance = dist
-                            MousePos = v.Character.HumanoidRootPart.Position
-                        end
-                    end
-                end
-            end
-        end)
-    end
-end)
-
--- =========================================
--- FIM DO NOVO AIMBOT SKILL
--- =========================================
-
--- =========================================
--- INTERFACE FLUENT: LISTA DE PLAYERS / ATACADOS
--- =========================================
-
-local function GetOnlinePlayersText()
-    local names = {}
-    for _, plr in ipairs(game:GetService("Players"):GetPlayers()) do
-        table.insert(names, plr.Name)
-    end
-    if #names == 0 then
-        return "Nenhum player encontrado."
-    end
-    table.sort(names)
-    return table.concat(names, ", ")
-end
-
-local function GetTriedPlayersText()
-    local nameSet = {}
-
-    if getgenv().checked then
-        for _, value in ipairs(getgenv().checked) do
-            if typeof(value) == "Instance" and value:IsA("Player") then
-                nameSet[value.Name] = true
-            elseif type(value) == "string" then
-                nameSet[value] = true
-            end
-        end
-    end
-
-    if getgenv().Blacklist then
-        for _, value in ipairs(getgenv().Blacklist) do
-            if type(value) == "string" then
-                nameSet[value] = true
-            end
-        end
-    end
-
-    local result = {}
-    for name in pairs(nameSet) do
-        table.insert(result, name)
-    end
-
-    if #result == 0 then
-        return "Ainda não tentei atacar ninguém."
-    end
-
-    table.sort(result)
-    return table.concat(result, ", ")
-end
-
-local function SafeSetParagraph(paragraph, content)
-    if not paragraph then return end
-    if typeof(paragraph) ~= "table" then return end
-
-    if paragraph.SetDesc then
-        paragraph:SetDesc(content)
-    elseif paragraph.SetText then
-        paragraph:SetText(content)
-    elseif paragraph.SetContent then
-        paragraph:SetContent(content)
-    end
-end
-
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-
-local FluentWindow = Fluent:CreateWindow({
-    Title = "Auto Bounty - Monitor",
-    SubTitle = "Players & Tentativas",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(480, 320),
-    Acrylic = true,
-    Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.RightControl
-})
-
-local PlayersTab = FluentWindow:AddTab({
-    Title = "Players",
-    Icon = "users"
-})
-
-local OnlineParagraph = PlayersTab:AddParagraph({
-    Title = "Jogadores online",
-    Content = "Carregando..."
-})
-
-local TriedParagraph = PlayersTab:AddParagraph({
-    Title = "Já tentei atacar",
-    Content = "Ainda não tentei atacar ninguém."
-})
-
-FluentWindow:SelectTab(1)
-
-task.spawn(function()
-    while task.wait(2) do
-        pcall(function()
-            SafeSetParagraph(OnlineParagraph, GetOnlinePlayersText())
-            SafeSetParagraph(TriedParagraph, GetTriedPlayersText())
-        end)
-    end
-end)
-
-Fluent:Notify({
-    Title = "Fluent UI",
-    Content = "Monitor de players carregado (RightCtrl para esconder)",
-    Duration = 5
-})
