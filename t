@@ -397,13 +397,9 @@ function CheckNearestTeleporter(aI)
     end
     local min3 = (vcspos - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
 
-    -- No Terceiro Mar, sempre use algum teleporte (o mais
-    -- próximo do inimigo), para garantir que também funcione
-    -- quando o alvo estiver na Turtle.
-    if World3 and choose then
-        return choose
-    end
-
+    -- Só usa teleporte se realmente for mais curto do que ir voando.
+    -- (No 3º mar, Turtle/Hydra/Mansion/Castle já são forçados lá em cima
+    -- pelo bloco "near", então essa comparação aqui cuida do resto.)
     if min2 <= min3 then
         return choose
     end
