@@ -698,7 +698,7 @@ end
 -- Safezones: se o inimigo estiver dentro de uma dessas áreas,
 -- ele não será escolhido como NOVO alvo. Se já for o alvo atual,
 -- o script continua atacando normalmente.
-local SAFEZONE_RADIUS = 20 -- raio em studs ao redor do centro da safezone
+local SAFEZONE_RADIUS = 150 -- raio em studs ao redor do centro da safezone
 
 local SafeZones = {
     CFrame.new(-5097.72656, 311.696777, -2189.77832, 0.374604106, 0, -0.92718488, 0, 1, 0, 0.92718488, 0, 0.374604106),
@@ -785,8 +785,9 @@ function target()
             end
         end 
         if p == nil then
-            -- Nada encontrado: limpa lista de checados para não travar sem alvo
-            getgenv().checked = {}
+            -- Nada encontrado: apenas mantém sem alvo; a lista
+            -- de players já atacados (checked) não é limpa para
+            -- não voltar em quem já foi focado.
             getgenv().targ = nil
         else
             getgenv().targ = p
@@ -908,9 +909,9 @@ spawn(function()
                                 if v:IsA("Tool") and v.ToolTip == "Blox Fruit" then
                                     if getgenv().Setting.Fruit.Enable then
                                         local skillsGui = game.Players.LocalPlayer.PlayerGui.Main:FindFirstChild("Skills")
-                                        if skillsGui and skillsGui:FindFirstChild(v.Name) and skillsGui[v.Name]:FindFirstChild("C") and skillsGui[v.Name].C.Cooldown.AbsoluteSize.X <= 0 and getgenv().Setting.Fruit.C.Enable then
-                                            l = getgenv().Setting.Fruit.C.HoldTime
-                                            down("C")
+                                        if skillsGui and skillsGui:FindFirstChild(v.Name) and skillsGui[v.Name]:FindFirstChild("X") and skillsGui[v.Name].X.Cooldown.AbsoluteSize.X <= 0 and getgenv().Setting.Fruit.X.Enable then
+                                            l = getgenv().Setting.Fruit.X.HoldTime
+                                            down("X")
                                         else
                                             Click()
                                         end
@@ -921,9 +922,9 @@ spawn(function()
                             for i, v in pairs(game.Players.LocalPlayer.Character:GetChildren()) do
                                 if v:IsA("Tool") and v.ToolTip == "Blox Fruit" then
                                     local skillsGui = game.Players.LocalPlayer.PlayerGui.Main:FindFirstChild("Skills")
-                                    if skillsGui and skillsGui:FindFirstChild(v.Name) and skillsGui[v.Name]:FindFirstChild("x") and skillsGui[v.Name].C.Cooldown.AbsoluteSize.X <= 0 and getgenv().Setting.Fruit.x.Enable then
-                                        l = getgenv().Setting.Fruit.C.HoldTime
-                                        down("x")
+                                    if skillsGui and skillsGui:FindFirstChild(v.Name) and skillsGui[v.Name]:FindFirstChild("X") and skillsGui[v.Name].X.Cooldown.AbsoluteSize.X <= 0 and getgenv().Setting.Fruit.X.Enable then
+                                        l = getgenv().Setting.Fruit.X.HoldTime
+                                        down("X")
                                     else
                                         Click()
                                     end
