@@ -252,6 +252,7 @@ getgenv().LastTargetHealth = nil
 getgenv().LastDamageTime = tick()
 getgenv().NoTargetCount = 0
 getgenv().SafeMode = false
+getgenv().ForceSafe = false
 getgenv().UsedServers = getgenv().UsedServers or {}
 local ScriptStartTime = tick()
 wait(1)
@@ -692,14 +693,16 @@ spawn(function()
                 local safeHp = (getgenv().Setting.SafeHealth and getgenv().Setting.SafeHealth.Health) or 3000
                 local safeY = (getgenv().Setting.SafeHealth and getgenv().Setting.SafeHealth.HighY) or 1200
 
-                if humanoid.Health < safeHp then
-                    -- Ativa modo seguro e mantém o boneco alto (Y = HighY)
+                local shouldSafe = getgenv().ForceSafe or humanoid.Health < safeHp
+
+                if shouldSafe then
+                    -- Ativa modo seguro (por HP baixo ou por hop) e mantém o boneco alto (Y = HighY)
                     getgenv().SafeMode = true
                     if hrp.Position.Y < safeY then
                         hrp.CFrame = CFrame.new(hrp.Position.X, safeY, hrp.Position.Z)
                     end
                 else
-                    -- HP recuperou: sai do modo seguro
+                    -- Nenhum motivo pra ficar em safe: desativa
                     getgenv().SafeMode = false
                 end
             end
@@ -789,83 +792,98 @@ end
 function HopServer()
     if getgenv().IsHopping then return end
     
-    -- Se estiver em combate com texto de "risk", não hopa
-    local ok, err = pcall(function()
-        local lp = game.Players.LocalPlayer
-        local gui = lp and lp:FindFirstChild("PlayerGui")
-        local main = gui and gui:FindFirstChild("Main")
-        local inCombat = main and main:FindFirstChild("InCombat")
-        if inCombat then
-            local txt = string.lower(inCombat.Text or "")
-            if string.find(txt, "risk") then
-                return -- não faz hop em situação de risco de bounty
-            end
+    -- Se estiver em combate com texto de "risk", não hopa (e força ficar em safe)
+    local lp = game.Players.LocalPlayer
+    local gui = lp and lp:FindFirstChild("PlayerGui")
+    local main = gui and gui:FindFirstChild("Main")
+    local inCombat = main and main:FindFirstChild("InCombat")
+    if inCombat then
+        local txt = string.lower(inCombat.Text or "")
+        if string.find(txt, "risk") then
+            getgenv().ForceSafe = true
+            return
+        end
+    end
+
+    local TeleportService = game:GetService("TeleportService")
+    local placeId = game.PlaceId
+    local currentJobId = game.JobId
+
+    -- Antes de hopar, ativa safe e sobe para a altura segura
+    getgenv().ForceSafe = true
+    pcall(function()
+        local char = lp.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local safeY = (getgenv().Setting.SafeHealth and getgenv().Setting.SafeHealth.HighY) or 1200
+        if hrp and hrp.Position.Y < safeY then
+            hrp.CFrame = CFrame.new(hrp.Position.X, safeY, hrp.Position.Z)
+        end
+    end)
+
+    -- Busca lista de servidores públicos e tenta achar um JobId diferente.
+    -- Se o executor bloquear HTTP, cai no Teleport normal.
+    local cursor = nil
+    local foundServerId = nil
+
+    for _ = 1, 5 do -- até 5 páginas, só pra garantir
+        local url = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?sortOrder=Asc&limit=100" .. (cursor and ("&cursor=" .. cursor) or "")
+
+        local okHttp, response = pcall(function()
+            return game:HttpGet(url)
+        end)
+        if not okHttp then
+            break
         end
 
-        local TeleportService = game:GetService("TeleportService")
-        local placeId = game.PlaceId
-        local currentJobId = game.JobId
+        local okJson, data = pcall(function()
+            return HttpService:JSONDecode(response)
+        end)
+        if not okJson then
+            break
+        end
 
-        -- Busca lista de servidores públicos e tenta achar um JobId diferente
-        local cursor = nil
-        local foundServerId = nil
+        if data and data.data then
+            for _, server in ipairs(data.data) do
+                if type(server) == "table" and server.id and server.id ~= currentJobId then
+                    local playing = tonumber(server.playing or 0)
+                    local maxPlayers = tonumber(server.maxPlayers or 0)
 
-        for _ = 1, 5 do -- até 5 páginas, só pra garantir
-            local url = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?sortOrder=Asc&limit=100" .. (cursor and ("&cursor=" .. cursor) or "")
-            -- Usa game:HttpGet como no sistema de hop fornecido, para evitar
-            -- a função que seu executor marcou como vulnerável.
-            local response = game:HttpGet(url)
-            local data = HttpService:JSONDecode(response)
+                    -- Notificação similar ao sistema enviado
+                    pcall(function()
+                        game.StarterGui:SetCore("SendNotification", {
+                            Title = "Hop Low Server",
+                            Text = "Players : " .. tostring(playing),
+                            Icon = "http://www.roblox.com/asset/?id=9606070311",
+                            Duration = 1.5
+                        })
+                    end)
 
-            if data and data.data then
-                for _, server in ipairs(data.data) do
-                    if type(server) == "table" and server.id and server.id ~= currentJobId then
-                        local playing = tonumber(server.playing or 0)
-                        local maxPlayers = tonumber(server.maxPlayers or 0)
-
-                        -- Notificação similar ao sistema enviado
-                        pcall(function()
-                            game.StarterGui:SetCore("SendNotification", {
-                                Title = "Hop Low Server",
-                                Text = "Players : " .. tostring(playing),
-                                Icon = "http://www.roblox.com/asset/?id=9606070311",
-                                Duration = 1.5
-                            })
-                        end)
-
-                        -- usa o critério do sistema fornecido: servidor com vaga e pelo menos 8 players
-                        if maxPlayers > playing and playing >= 8 then
-                            if not getgenv().UsedServers[server.id] then
-                                foundServerId = server.id
-                                break
-                            end
+                    -- usa o critério do sistema fornecido: servidor com vaga e pelo menos 8 players
+                    if maxPlayers > playing and playing >= 8 then
+                        if not getgenv().UsedServers[server.id] then
+                            foundServerId = server.id
+                            break
                         end
                     end
                 end
             end
-
-            if foundServerId then break end
-            if data and data.nextPageCursor then
-                cursor = data.nextPageCursor
-            else
-                break
-            end
         end
 
-        if foundServerId then
-            getgenv().IsHopping = true
-            getgenv().UsedServers[foundServerId] = true
-            TeleportService:TeleportToPlaceInstance(placeId, foundServerId, lp)
+        if foundServerId then break end
+        if data and data.nextPageCursor then
+            cursor = data.nextPageCursor
         else
-            -- fallback: se não achou outro servidor, tenta Teleport normal
-            getgenv().IsHopping = true
-            TeleportService:Teleport(placeId, lp)
+            break
         end
-    end)
+    end
 
-    if not ok then
-        warn("[Auto Bounty] Erro ao tentar HopServer:", err)
-        getgenv().IsHopping = false
+    getgenv().IsHopping = true
+    if foundServerId then
+        getgenv().UsedServers[foundServerId] = true
+        TeleportService:TeleportToPlaceInstance(placeId, foundServerId, lp)
+    else
+        -- fallback: se não achou outro servidor ou HTTP falhou, tenta Teleport normal
+        TeleportService:Teleport(placeId, lp)
     end
 end
 
@@ -900,9 +918,22 @@ function target()
                 end
             end
         end 
-        if p == nil then
+                        if p == nil then
             -- Nada encontrado nesta varredura.
             getgenv().targ = nil
+
+                            -- Se estiver em bounty risk, não tenta hopar agora, só mantém safe.
+                            local lp = game.Players.LocalPlayer
+                            local gui = lp and lp:FindFirstChild("PlayerGui")
+                            local main = gui and gui:FindFirstChild("Main")
+                            local inCombat = main and main:FindFirstChild("InCombat")
+                            if inCombat then
+                                local txt = string.lower(inCombat.Text or "")
+                                if string.find(txt, "risk") then
+                                    getgenv().ForceSafe = true
+                                    return
+                                end
+                            end
 
             -- Conta quantas vezes seguidas não achamos alvo.
             getgenv().NoTargetCount = (getgenv().NoTargetCount or 0) + 1
