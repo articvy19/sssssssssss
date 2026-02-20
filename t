@@ -313,6 +313,7 @@ getgenv().TargetStartTime = nil
 getgenv().LastTeleportTime = getgenv().LastTeleportTime or 0
 getgenv().HpSnapshot = nil
 getgenv().HpSnapshotTime = nil
+getgenv().CurrentTweenTarget = getgenv().CurrentTweenTarget or nil
 local ScriptStartTime = tick()
 wait(1)
 
@@ -488,7 +489,7 @@ function topos(Tween_Pos)
             and game:GetService("Players").LocalPlayer.Character.Humanoid.Health > 0 
             and game:GetService("Players").LocalPlayer.Character.HumanoidRootPart then
             if not TweenSpeed then
-                TweenSpeed = 350
+                TweenSpeed = 400
             end
             -- manter voo em altura segura para não bater na água
             local MinFlyY = 50
@@ -517,6 +518,16 @@ function topos(Tween_Pos)
                 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
             )
             local IngoreY = true
+
+            -- Se já existe um tween em andamento e o alvo não mudou muito de posição,
+            -- deixa o tween atual continuar para evitar ficar "dando voadinha e parando".
+            if tween and getgenv().CurrentTweenTarget then
+                local distToOldTarget = (getgenv().CurrentTweenTarget - targetPos).Magnitude
+                if distToOldTarget < 20 and tween.PlaybackState == Enum.PlaybackState.Playing then
+                    return
+                end
+            end
+
             if IngoreY and (b1.Position - targetCFrameWithDefualtY.Position).Magnitude > 5 then
                 -- Cancela tween antigo para atualizar sempre para a posição mais recente do alvo
                 if tween then
@@ -538,6 +549,7 @@ function topos(Tween_Pos)
                     aO,
                     {CFrame = targetCFrameWithDefualtY}
                 )
+                getgenv().CurrentTweenTarget = targetPos
                 tween:Play()
             else
                 if tween then
@@ -554,6 +566,7 @@ function topos(Tween_Pos)
                     aO,
                     {CFrame = Tween_Pos}
                 )
+                getgenv().CurrentTweenTarget = targetPos
                 tween:Play()
             end
         end
@@ -600,13 +613,8 @@ function to(Pos)
             if game.Players.LocalPlayer.Character.Humanoid.Sit == true then
                 game.Players.LocalPlayer.Character.Humanoid.Sit = false
             end
-            if Distance < 250 then
-                Speed = 400
-            elseif Distance < 1000 then
-                Speed = 400
-            elseif Distance >= 1000 then
-                Speed = 400
-            end
+            -- Velocidade fixa mais alta para chegar mais rápido ao alvo
+            Speed = 400
             pcall(function()
                 if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
                     -- tween em altura constante e segura para evitar água
