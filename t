@@ -254,6 +254,8 @@ getgenv().NoTargetCount = 0
 getgenv().SafeMode = false
 getgenv().ForceSafe = false
 getgenv().UsedServers = getgenv().UsedServers or {}
+getgenv().LastAttackTime = 0
+getgenv().EnvDamageCount = 0
 local ScriptStartTime = tick()
 wait(1)
 
@@ -681,6 +683,31 @@ if getgenv().Setting.Another.WhiteScreen then
     game.RunService:Set3dRenderingEnabled(false)
 end
 
+-- Controle de bounty risk (cooldown antes de permitir hop)
+getgenv().LastRiskTime = getgenv().LastRiskTime or 0
+local RISK_HOP_COOLDOWN = 25 -- segundos após o último "risk" antes de liberar hop
+
+-- Monitor global do texto de InCombat para registrar quando há "risk"
+spawn(function()
+    while task.wait(0.5) do
+        pcall(function()
+            local lp = game.Players.LocalPlayer
+            local gui = lp and lp:FindFirstChild("PlayerGui")
+            local main = gui and main or (gui and gui:FindFirstChild("Main"))
+            if not main and gui then
+                main = gui:FindFirstChild("Main")
+            end
+            local inCombat = main and main:FindFirstChild("InCombat")
+            if inCombat then
+                local txt = string.lower(inCombat.Text or "")
+                if string.find(txt, "risk") then
+                    getgenv().LastRiskTime = tick()
+                end
+            end
+        end)
+    end
+end)
+
 -- SafeMode: se o HP ficar abaixo do limite, sobe 200 de altura;
 -- quando o HP volta ao normal, desativa o modo seguro para voltar a caçar.
 spawn(function()
@@ -792,14 +819,24 @@ end
 function HopServer()
     if getgenv().IsHopping then return end
     
-    -- Se estiver em combate com texto de "risk", não hopa (e força ficar em safe)
+    -- Se houve bounty risk recentemente, não hopa (e força ficar em safe)
     local lp = game.Players.LocalPlayer
     local gui = lp and lp:FindFirstChild("PlayerGui")
     local main = gui and gui:FindFirstChild("Main")
     local inCombat = main and main:FindFirstChild("InCombat")
+    local now = tick()
+
+    -- Primeiro, usa o cooldown baseado na última vez que vimos "risk"
+    if (getgenv().LastRiskTime or 0) > 0 and (now - getgenv().LastRiskTime) < RISK_HOP_COOLDOWN then
+        getgenv().ForceSafe = true
+        return
+    end
+
+    -- Fallback adicional: checa o texto atual de InCombat
     if inCombat then
         local txt = string.lower(inCombat.Text or "")
         if string.find(txt, "risk") then
+            getgenv().LastRiskTime = now
             getgenv().ForceSafe = true
             return
         end
@@ -922,18 +959,26 @@ function target()
             -- Nada encontrado nesta varredura.
             getgenv().targ = nil
 
-                            -- Se estiver em bounty risk, não tenta hopar agora, só mantém safe.
-                            local lp = game.Players.LocalPlayer
-                            local gui = lp and lp:FindFirstChild("PlayerGui")
-                            local main = gui and gui:FindFirstChild("Main")
-                            local inCombat = main and main:FindFirstChild("InCombat")
-                            if inCombat then
-                                local txt = string.lower(inCombat.Text or "")
-                                if string.find(txt, "risk") then
-                                    getgenv().ForceSafe = true
-                                    return
-                                end
-                            end
+            -- Se houve bounty risk recentemente, não tenta hopar agora, só mantém safe.
+            local now = tick()
+            if (getgenv().LastRiskTime or 0) > 0 and (now - getgenv().LastRiskTime) < RISK_HOP_COOLDOWN then
+                getgenv().ForceSafe = true
+                return
+            end
+
+            -- Fallback adicional: checa o texto atual de InCombat
+            local lp = game.Players.LocalPlayer
+            local gui = lp and lp:FindFirstChild("PlayerGui")
+            local main = gui and gui:FindFirstChild("Main")
+            local inCombat = main and main:FindFirstChild("InCombat")
+            if inCombat then
+                local txt = string.lower(inCombat.Text or "")
+                if string.find(txt, "risk") then
+                    getgenv().LastRiskTime = now
+                    getgenv().ForceSafe = true
+                    return
+                end
+            end
 
             -- Conta quantas vezes seguidas não achamos alvo.
             getgenv().NoTargetCount = (getgenv().NoTargetCount or 0) + 1
@@ -1010,6 +1055,21 @@ spawn(function()
                         -- Qualquer mudança de HP reseta o timer
                         getgenv().LastTargetHealth = currentHealth
                         getgenv().LastDamageTime = tick()
+
+                        -- Verifica se o dano veio de nós (ataque recente e perto)
+                        local isOurDamage = (tick() - (getgenv().LastAttackTime or 0)) < 1 and distance <= 80
+                        if isOurDamage then
+                            getgenv().EnvDamageCount = 0
+                        else
+                            -- Dano vindo de água/outro player/ambiente: conta e, se repetir, pula esse alvo
+                            getgenv().EnvDamageCount = (getgenv().EnvDamageCount or 0) + 1
+                            if getgenv().EnvDamageCount >= 3 then
+                                print("[Auto Bounty] Alvo tomando dano que não é meu (provavelmente PvP off/água), pulando...")
+                                getgenv().EnvDamageCount = 0
+                                SkipPlayer()
+                                return
+                            end
+                        end
                     else
                         -- HP parado e estamos perto: se passou muito tempo, troca alvo
                         if tick() - (getgenv().LastDamageTime or 0) > 4 then
@@ -1068,8 +1128,10 @@ spawn(function()
                                         local skillsGui = game.Players.LocalPlayer.PlayerGui.Main:FindFirstChild("Skills")
                                         if skillsGui and skillsGui:FindFirstChild(v.Name) and skillsGui[v.Name]:FindFirstChild("X") and skillsGui[v.Name].X.Cooldown.AbsoluteSize.X <= 0 and getgenv().Setting.Fruit.X.Enable then
                                             l = getgenv().Setting.Fruit.X.HoldTime
+                                            getgenv().LastAttackTime = tick()
                                             down("X")
                                         else
+                                            getgenv().LastAttackTime = tick()
                                             Click()
                                         end
                                     end
@@ -1081,8 +1143,10 @@ spawn(function()
                                     local skillsGui = game.Players.LocalPlayer.PlayerGui.Main:FindFirstChild("Skills")
                                     if skillsGui and skillsGui:FindFirstChild(v.Name) and skillsGui[v.Name]:FindFirstChild("X") and skillsGui[v.Name].X.Cooldown.AbsoluteSize.X <= 0 and getgenv().Setting.Fruit.X.Enable then
                                         l = getgenv().Setting.Fruit.X.HoldTime
+                                        getgenv().LastAttackTime = tick()
                                         down("X")
                                     else
+                                        getgenv().LastAttackTime = tick()
                                         Click()
                                     end
                                 end
