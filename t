@@ -697,7 +697,9 @@ spawn(function()
             local inCombat = main and main:FindFirstChild("InCombat")
             if inCombat then
                 local txt = string.lower(inCombat.Text or "")
-                if inCombat.Visible or string.find(txt, "risk") then
+                -- Apenas registra o momento em que o aviso de risk está visível;
+                -- o efeito é só bloquear hop enquanto estiver aparecendo.
+                if inCombat.Visible and string.find(txt, "risk") then
                     getgenv().LastRiskTime = tick()
                 end
             end
@@ -816,32 +818,14 @@ end
 function HopServer()
     if getgenv().IsHopping then return end
     
-    -- Se houve bounty risk recentemente, não hopa (e força ficar em safe)
+    -- Só impede hop enquanto o aviso de bounty risk estiver aparecendo
     local lp = game.Players.LocalPlayer
     local gui = lp and lp:FindFirstChild("PlayerGui")
     local main = gui and gui:FindFirstChild("Main")
     local inCombat = main and main:FindFirstChild("InCombat")
-    local now = tick()
-
-    -- Bloqueia hop enquanto o aviso de risk estiver visível
-    if inCombat and inCombat.Visible then
-        getgenv().LastRiskTime = now
-        getgenv().ForceSafe = true
-        return
-    end
-
-    -- Usa o cooldown baseado na última vez que vimos "risk"
-    if (getgenv().LastRiskTime or 0) > 0 and (now - getgenv().LastRiskTime) < RISK_HOP_COOLDOWN then
-        getgenv().ForceSafe = true
-        return
-    end
-
-    -- Fallback adicional: checa o texto atual de InCombat
     if inCombat then
         local txt = string.lower(inCombat.Text or "")
-        if string.find(txt, "risk") then
-            getgenv().LastRiskTime = now
-            getgenv().ForceSafe = true
+        if inCombat.Visible and string.find(txt, "risk") then
             return
         end
     end
@@ -962,32 +946,6 @@ function target()
                         if p == nil then
             -- Nada encontrado nesta varredura.
             getgenv().targ = nil
-
-            -- Se ainda estiver com risk na tela ou dentro do cooldown, não tenta hopar agora, só mantém safe.
-            local now = tick()
-            local lp = game.Players.LocalPlayer
-            local gui = lp and lp:FindFirstChild("PlayerGui")
-            local main = gui and gui:FindFirstChild("Main")
-            local inCombat = main and main:FindFirstChild("InCombat")
-            if inCombat and inCombat.Visible then
-                getgenv().LastRiskTime = now
-                getgenv().ForceSafe = true
-                return
-            end
-
-            if (getgenv().LastRiskTime or 0) > 0 and (now - getgenv().LastRiskTime) < RISK_HOP_COOLDOWN then
-                getgenv().ForceSafe = true
-                return
-            end
-
-            if inCombat then
-                local txt = string.lower(inCombat.Text or "")
-                if string.find(txt, "risk") then
-                    getgenv().LastRiskTime = now
-                    getgenv().ForceSafe = true
-                    return
-                end
-            end
 
             -- Conta quantas vezes seguidas não achamos alvo.
             getgenv().NoTargetCount = (getgenv().NoTargetCount or 0) + 1
