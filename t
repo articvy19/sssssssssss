@@ -146,6 +146,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 _G.Seriality = true
@@ -251,6 +252,7 @@ getgenv().LastTargetHealth = nil
 getgenv().LastDamageTime = tick()
 getgenv().NoTargetCount = 0
 getgenv().SafeMode = false
+getgenv().UsedServers = getgenv().UsedServers or {}
 local ScriptStartTime = tick()
 wait(1)
 
@@ -800,9 +802,49 @@ function HopServer()
             end
         end
 
-        getgenv().IsHopping = true
         local TeleportService = game:GetService("TeleportService")
-        TeleportService:Teleport(game.PlaceId, lp)
+        local placeId = game.PlaceId
+        local currentJobId = game.JobId
+
+        -- Busca lista de servidores públicos e tenta achar um JobId diferente
+        local cursor = nil
+        local foundServerId = nil
+
+        for _ = 1, 5 do -- até 5 páginas, só pra garantir
+            local url = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?sortOrder=Asc&limit=100" .. (cursor and ("&cursor=" .. cursor) or "")
+            local response = HttpService:GetAsync(url)
+            local data = HttpService:JSONDecode(response)
+
+            if data and data.data then
+                for _, server in ipairs(data.data) do
+                    if type(server) == "table" and server.id and server.id ~= currentJobId then
+                        if (server.playing or 0) < (server.maxPlayers or 0) then
+                            if not getgenv().UsedServers[server.id] then
+                                foundServerId = server.id
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+
+            if foundServerId then break end
+            if data and data.nextPageCursor then
+                cursor = data.nextPageCursor
+            else
+                break
+            end
+        end
+
+        if foundServerId then
+            getgenv().IsHopping = true
+            getgenv().UsedServers[foundServerId] = true
+            TeleportService:TeleportToPlaceInstance(placeId, foundServerId, lp)
+        else
+            -- fallback: se não achou outro servidor, tenta Teleport normal
+            getgenv().IsHopping = true
+            TeleportService:Teleport(placeId, lp)
+        end
     end)
 
     if not ok then
