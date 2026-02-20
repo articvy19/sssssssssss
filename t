@@ -165,6 +165,15 @@ local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 _G.Seriality = true
 
+-- Helper para pegar o GUI principal (Main ou Main (minimal))
+local function GetMainGui()
+    local lp = Players.LocalPlayer
+    if not lp then return nil end
+    local pg = lp:FindFirstChild("PlayerGui")
+    if not pg then return nil end
+    return pg:FindFirstChild("Main") or pg:FindFirstChild("Main (minimal)")
+end
+
 -- Quando o personagem renascer (reset/morte), limpar estados e voltar a caçar
 pcall(function()
     lp.CharacterAdded:Connect(function(char)
@@ -893,9 +902,18 @@ end
 -- Hop de servidor: chamado quando não há mais players válidos
 function HopServer()
     if getgenv().IsHopping then return end
-    
-    -- Só impede hop enquanto houver qualquer aviso de bounty risk visível
+
+    -- Bloqueios de hop relacionados a combate/risk:
+    -- 1) Se houver qualquer aviso de bounty/risk visível, nunca hopa.
+    -- 2) Mesmo depois que o aviso some, espera um cooldown antes de permitir hop,
+    --    para não trocar de servidor logo após um PVP recente.
     if IsRiskActive() then
+        getgenv().LastRiskTime = tick()
+        return
+    end
+
+    local lastRisk = getgenv().LastRiskTime or 0
+    if tick() - lastRisk < RISK_HOP_COOLDOWN then
         return
     end
 
@@ -1022,9 +1040,9 @@ function target()
 
             -- Só faz hop se:
             -- 1) o script já está rodando há alguns segundos (evita hop logo ao entrar)
-            -- 2) várias tentativas seguidas sem achar alvo.
-            -- HopServer em si checa IsRiskActive, então aqui não precisamos olhar risk.
-            if tick() - ScriptStartTime > 20 and getgenv().NoTargetCount >= 5 then
+            -- 2) muitas tentativas seguidas sem achar alvo.
+            -- HopServer em si checa IsRiskActive e o cooldown pós-combate.
+            if tick() - ScriptStartTime > 20 and getgenv().NoTargetCount >= 15 then
                 HopServer()
             end
         else
@@ -1172,7 +1190,8 @@ spawn(function()
                             for i, v in pairs(game.Players.LocalPlayer.Character:GetChildren()) do 
                                 if v:IsA("Tool") and v.ToolTip == "Blox Fruit" then
                                     if getgenv().Setting.Fruit.Enable then
-                                        local skillsGui = game.Players.LocalPlayer.PlayerGui.Main:FindFirstChild("Skills")
+                                        local mainGui = GetMainGui()
+                                        local skillsGui = mainGui and mainGui:FindFirstChild("Skills")
                                         local usedSkill = false
                                         if skillsGui and skillsGui:FindFirstChild(v.Name) then
                                             local skillFrame = skillsGui[v.Name]
@@ -1201,7 +1220,8 @@ spawn(function()
                         else
                             for i, v in pairs(game.Players.LocalPlayer.Character:GetChildren()) do
                                 if v:IsA("Tool") and v.ToolTip == "Blox Fruit" then
-                                    local skillsGui = game.Players.LocalPlayer.PlayerGui.Main:FindFirstChild("Skills")
+                                    local mainGui = GetMainGui()
+                                    local skillsGui = mainGui and mainGui:FindFirstChild("Skills")
                                     local usedSkill = false
                                     if skillsGui and skillsGui:FindFirstChild(v.Name) then
                                         local skillFrame = skillsGui[v.Name]
