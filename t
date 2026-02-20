@@ -191,6 +191,8 @@ pcall(function()
             getgenv().LastTargetHealth = nil
             getgenv().TargetStartTime = nil
             getgenv().NoTargetCount = 0
+            getgenv().HpSnapshot = nil
+            getgenv().HpSnapshotTime = nil
 
             -- pequena espera rápida só pra garantir carregamento e volta a procurar alvo
             task.wait(0.25)
@@ -308,6 +310,9 @@ getgenv().LastAttackTime = 0
 getgenv().EnvDamageCount = 0
 getgenv().OurDamageCount = 0
 getgenv().TargetStartTime = nil
+getgenv().LastTeleportTime = getgenv().LastTeleportTime or 0
+getgenv().HpSnapshot = nil
+getgenv().HpSnapshotTime = nil
 local ScriptStartTime = tick()
 wait(1)
 
@@ -498,7 +503,9 @@ function topos(Tween_Pos)
                 return
             end
             local aM = CheckNearestTeleporter(Tween_Pos)
-            if aM then
+            -- Usa teleporte só de tempos em tempos para evitar spam
+            if aM and (tick() - (getgenv().LastTeleportTime or 0) > 5) then
+                getgenv().LastTeleportTime = tick()
                 pcall(function()
                     if tween then tween:Cancel() end
                 end)
@@ -511,6 +518,10 @@ function topos(Tween_Pos)
             )
             local IngoreY = true
             if IngoreY and (b1.Position - targetCFrameWithDefualtY.Position).Magnitude > 5 then
+                -- Cancela tween antigo para atualizar sempre para a posição mais recente do alvo
+                if tween then
+                    pcall(function() tween:Cancel() end)
+                end
                 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
                     game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
                     DefualtY,
@@ -528,16 +539,10 @@ function topos(Tween_Pos)
                     {CFrame = targetCFrameWithDefualtY}
                 )
                 tween:Play()
-                function tweenfunc:Stop()
-                    tween:Cancel()
-                end
-                tween.Completed:Wait()
-                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
-                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
-                    TargetY,
-                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
-                )
             else
+                if tween then
+                    pcall(function() tween:Cancel() end)
+                end
                 local tweenfunc = {}
                 local aN = game:GetService("TweenService")
                 local aO = TweenInfo.new(
@@ -550,15 +555,6 @@ function topos(Tween_Pos)
                     {CFrame = Tween_Pos}
                 )
                 tween:Play()
-                function tweenfunc:Stop()
-                    tween:Cancel()
-                end
-                tween.Completed:Wait()
-                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
-                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
-                    TargetY,
-                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
-                )
             end
         end
     end)
@@ -896,6 +892,10 @@ function SkipPlayer()
     table.insert(getgenv().checked, getgenv().targ)
     getgenv().targ = nil
     getgenv().TargetStartTime = nil
+    getgenv().HpSnapshot = nil
+    getgenv().HpSnapshotTime = nil
+    getgenv().OurDamageCount = 0
+    getgenv().EnvDamageCount = 0
     target()
 end
 
@@ -920,6 +920,10 @@ function HopServer()
     local TeleportService = game:GetService("TeleportService")
     local placeId = game.PlaceId
     local currentJobId = game.JobId
+
+    -- Marca o servidor atual como já usado ANTES de qualquer coisa,
+    -- assim ele nunca será escolhido como destino (corrige o hop para o mesmo servidor)
+    getgenv().UsedServers[currentJobId] = true
 
     -- Antes de hopar, ativa safe e sobe para a altura segura
     getgenv().ForceSafe = true
@@ -956,26 +960,28 @@ function HopServer()
 
         if data and data.data then
             for _, server in ipairs(data.data) do
-                if type(server) == "table" and server.id and server.id ~= currentJobId then
-                    local playing = tonumber(server.playing or 0)
+                if type(server) == "table" and server.id then
+                    local playing    = tonumber(server.playing or 0)
                     local maxPlayers = tonumber(server.maxPlayers or 0)
 
-                    -- Notificação similar ao sistema enviado
-                    pcall(function()
-                        game.StarterGui:SetCore("SendNotification", {
-                            Title = "Hop Low Server",
-                            Text = "Players : " .. tostring(playing),
-                            Icon = "http://www.roblox.com/asset/?id=9606070311",
-                            Duration = 1.5
-                        })
-                    end)
+                    -- Ignora: servidor atual, servidores já visitados e servidores cheios/vazios
+                    if server.id ~= currentJobId
+                       and not getgenv().UsedServers[server.id]
+                       and maxPlayers > playing
+                       and playing >= 8 then
 
-                    -- usa o critério do sistema fornecido: servidor com vaga e pelo menos 8 players
-                    if maxPlayers > playing and playing >= 8 then
-                        if not getgenv().UsedServers[server.id] then
-                            foundServerId = server.id
-                            break
-                        end
+                        -- Notificação
+                        pcall(function()
+                            game.StarterGui:SetCore("SendNotification", {
+                                Title = "Hop Low Server",
+                                Text = "Players : " .. tostring(playing),
+                                Icon = "http://www.roblox.com/asset/?id=9606070311",
+                                Duration = 1.5
+                            })
+                        end)
+
+                        foundServerId = server.id
+                        break
                     end
                 end
             end
@@ -991,10 +997,13 @@ function HopServer()
 
     getgenv().IsHopping = true
     if foundServerId then
+        -- Marca o destino como já visitado para evitar loop de volta
         getgenv().UsedServers[foundServerId] = true
         TeleportService:TeleportToPlaceInstance(placeId, foundServerId, lp)
     else
-        -- fallback: se não achou outro servidor ou HTTP falhou, tenta Teleport normal
+        -- Fallback: se não achou nenhum servidor válido ou HTTP falhou
+        -- Limpa a lista de usados para não ficar sem opções na próxima vez
+        getgenv().UsedServers = { [currentJobId] = true }
         TeleportService:Teleport(placeId, lp)
     end
 end
@@ -1079,72 +1088,177 @@ game:GetService("Players").PlayerRemoving:Connect(function(plr)
     end
 end)
 
--- Monitor global: se estivermos PERTO do alvo e o HP dele não mudar
--- por alguns segundos, pula para o próximo inimigo
+-- ============================================================
+-- Monitor de dano em PLAYER: detecta se estamos causando dano
+-- Usa snapshot de HP antes/depois do ataque + threshold de regen
+-- para distinguir dano nosso de regen ou dano de terceiros
+-- ============================================================
+local REGEN_RATE      = 2    -- HP/s que o jogo pode regenerar naturalmente
+local ATTACK_WINDOW   = 0.25 -- segundos após LastAttackTime para considerar "janela do ataque"
+local NO_DAMAGE_LIMIT = 4    -- segundos sem causar dano próximo antes de trocar alvo
+local ENV_SKIP_COUNT  = 3    -- qtd de mudanças de HP "externas" antes de pular (sem nenhum dano nosso)
+
+-- Variáveis de controle do snapshot
+getgenv().HpSnapshot       = nil  -- HP registrado no momento do ataque
+getgenv().HpSnapshotTime   = nil  -- tick() do snapshot
+
+-- Sempre que um ataque é disparado, registra o HP do alvo naquele momento
+-- (isso é chamado internamente sempre que LastAttackTime é atualizado)
+local function TakeHpSnapshot()
+    local t = getgenv().targ
+    if not t or not t.Character then return end
+    local hum = t.Character:FindFirstChild("Humanoid")
+    if not hum then return end
+    getgenv().HpSnapshot     = hum.Health
+    getgenv().HpSnapshotTime = tick()
+end
+
+-- Hook: toda vez que LastAttackTime é atualizado em qualquer parte do script,
+-- automaticamente tira o snapshot. Fazemos isso sobrescrevendo a variável
+-- via um proxy simples no getgenv().
+local _origLastAttackTime = getgenv().LastAttackTime or 0
+local _snapshotProxy = {}
+setmetatable(_snapshotProxy, {
+    __newindex = function(_, k, v)
+        rawset(_snapshotProxy, k, v)
+        if k == "LastAttackTime" then
+            TakeHpSnapshot()
+        end
+    end,
+    __index = function(_, k)
+        return rawget(_snapshotProxy, k)
+    end
+})
+
+-- Como getgenv() é uma tabela global do executor, não podemos usar proxy direto,
+-- então usamos um spawn que observa mudanças em LastAttackTime continuamente.
+local _lastObservedAttackTime = getgenv().LastAttackTime or 0
+spawn(function()
+    while task.wait(0.05) do
+        local cur = getgenv().LastAttackTime or 0
+        if cur ~= _lastObservedAttackTime then
+            _lastObservedAttackTime = cur
+            TakeHpSnapshot()
+        end
+    end
+end)
+
+-- Verifica se o player alvo é realmente um player (não mob)
+local function IsRealPlayer(plr)
+    if not plr then return false end
+    for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+        if p == plr then return true end
+    end
+    return false
+end
+
+-- Retorna true se causamos dano: compara snapshot tirado no ataque com HP atual
+local function DidWeDamageTarget()
+    local t = getgenv().targ
+    if not IsRealPlayer(t) then return false end
+    if not t.Character then return false end
+    local hum = t.Character:FindFirstChild("Humanoid")
+    if not hum then return false end
+
+    local snap     = getgenv().HpSnapshot
+    local snapTime = getgenv().HpSnapshotTime
+    if not snap or not snapTime then return false end
+
+    local elapsed   = tick() - snapTime
+    local maxRegen  = REGEN_RATE * elapsed     -- HP que poderia ter regenerado
+    local hpNow     = hum.Health
+    local netDrop   = snap - hpNow             -- positivo = HP caiu
+
+    -- HP caiu mais do que a regen possível nesse intervalo = nós causamos dano
+    return netDrop > maxRegen
+end
+
+-- Monitor global: perto do alvo, verifica continuamente se estamos causando dano
 spawn(function()
     while task.wait(1) do
         pcall(function()
-            local t = getgenv().targ
+            local t  = getgenv().targ
             local me = game.Players.LocalPlayer
-            -- Se o alvo atual ficar inválido (saiu, morreu, etc), limpa para forçar retarget
+
+            -- Alvo inválido: limpa para forçar retarget
             if t and not IsValidPlayerTarget(t) then
-                getgenv().targ = nil
+                getgenv().targ            = nil
                 getgenv().LastTargetHealth = nil
+                getgenv().HpSnapshot      = nil
+                getgenv().HpSnapshotTime  = nil
                 return
             end
-            if t and t.Character and t.Character:FindFirstChild("Humanoid")
-               and me.Character and me.Character:FindFirstChild("HumanoidRootPart")
-               and t.Character:FindFirstChild("HumanoidRootPart") then
 
-                local currentHealth = t.Character.Humanoid.Health
-                local distance = (t.Character.HumanoidRootPart.Position - me.Character.HumanoidRootPart.Position).Magnitude
+            if not t or not t.Character then return end
+            local hum = t.Character:FindFirstChild("Humanoid")
+            local hrp = t.Character:FindFirstChild("HumanoidRootPart")
+            local myHrp = me.Character and me.Character:FindFirstChild("HumanoidRootPart")
+            if not hum or not hrp or not myHrp then return end
 
-                -- Só conta "sem dano" quando estamos relativamente perto do alvo
-                if distance > 80 then
-                    getgenv().LastTargetHealth = currentHealth
-                    getgenv().LastDamageTime = tick()
-                    return
+            local currentHealth = hum.Health
+            local distance = (hrp.Position - myHrp.Position).Magnitude
+
+            -- Longe do alvo: reseta contadores e aguarda chegar perto
+            if distance > 80 then
+                getgenv().LastTargetHealth = currentHealth
+                getgenv().LastDamageTime   = tick()
+                getgenv().OurDamageCount   = 0
+                getgenv().EnvDamageCount   = 0
+                return
+            end
+
+            -- Inicializa referência de HP
+            if getgenv().LastTargetHealth == nil then
+                getgenv().LastTargetHealth = currentHealth
+                getgenv().LastDamageTime   = tick()
+                return
+            end
+
+            local delta = currentHealth - getgenv().LastTargetHealth
+            getgenv().LastTargetHealth = currentHealth
+
+            if math.abs(delta) > 1 then
+                getgenv().LastDamageTime = tick()
+
+                -- Checagem precisa: usamos snapshot tirado no momento do ataque
+                local weDidDamage = DidWeDamageTarget()
+
+                -- Fallback: se snapshot não está disponível, usa janela de ataque clássica
+                if not weDidDamage then
+                    local attackWindow = tick() - (getgenv().LastAttackTime or 0)
+                    weDidDamage = (delta < -1) and (attackWindow <= ATTACK_WINDOW) and (distance <= 25)
                 end
 
-                if getgenv().LastTargetHealth == nil then
-                    getgenv().LastTargetHealth = currentHealth
-                    getgenv().LastDamageTime = tick()
+                if weDidDamage then
+                    -- Confirmado: nós causamos dano nesse player
+                    getgenv().OurDamageCount = (getgenv().OurDamageCount or 0) + 1
+                    getgenv().EnvDamageCount = 0
+                    -- Reseta snapshot para o próximo ciclo
+                    getgenv().HpSnapshot    = nil
+                    getgenv().HpSnapshotTime = nil
                 else
-                    local delta = currentHealth - getgenv().LastTargetHealth
-                    if math.abs(delta) > 1 then
-                        local now = tick()
-                        -- Só consideramos "nosso dano" quando o HP CAI logo depois de um ataque e muito perto do alvo
-                        local attackWindow = now - (getgenv().LastAttackTime or 0)
-                        local isOurDamage = (delta < -1) and attackWindow <= 0.25 and distance <= 25
+                    -- HP mudou mas não foi dano nosso (regen, outro player, água, etc)
+                    getgenv().EnvDamageCount = (getgenv().EnvDamageCount or 0) + 1
 
-                        -- Atualiza estado básico de HP/tempo
-                        getgenv().LastTargetHealth = currentHealth
-                        getgenv().LastDamageTime = now
-
-                        if isOurDamage then
-                            -- Confirmamos pelo menos um dano nosso neste alvo
-                            getgenv().OurDamageCount = (getgenv().OurDamageCount or 0) + 1
-                            getgenv().EnvDamageCount = 0
-                        else
-                            -- Dano vindo de água/outro player/ambiente/heal: conta como "estranho" para este alvo
-                            getgenv().EnvDamageCount = (getgenv().EnvDamageCount or 0) + 1
-                            if (getgenv().OurDamageCount or 0) == 0 and getgenv().EnvDamageCount >= 3 then
-                                print("[Auto Bounty] Alvo tomando dano que não é meu (provavelmente PvP off/água), pulando...")
-                                getgenv().EnvDamageCount = 0
-                                SkipPlayer()
-                                return
-                            end
-                        end
-                    else
-                        -- HP parado e estamos perto: se passou muito tempo, troca alvo
-                        if tick() - (getgenv().LastDamageTime or 0) > 4 then
-                            print("[Auto Bounty] Sem dano recente no alvo (perto), trocando de inimigo...")
-                            SkipPlayer()
-                        end
+                    -- Se ainda não causamos NENHUM dano nesse player e já tivemos
+                    -- várias mudanças de HP externas, é sinal que não estamos acertando
+                    if (getgenv().OurDamageCount or 0) == 0 and getgenv().EnvDamageCount >= ENV_SKIP_COUNT then
+                        print("[Auto Bounty] Alvo regenerando ou tomando dano externo sem dano nosso, pulando...")
+                        getgenv().EnvDamageCount = 0
+                        getgenv().HpSnapshot     = nil
+                        getgenv().HpSnapshotTime  = nil
+                        SkipPlayer()
+                        return
                     end
                 end
             else
-                getgenv().LastTargetHealth = nil
+                -- HP estável: se passou tempo demais perto sem causar dano, troca alvo
+                if tick() - (getgenv().LastDamageTime or 0) > NO_DAMAGE_LIMIT then
+                    print("[Auto Bounty] Sem dano no player por " .. NO_DAMAGE_LIMIT .. "s (perto), trocando...")
+                    getgenv().HpSnapshot    = nil
+                    getgenv().HpSnapshotTime = nil
+                    SkipPlayer()
+                end
             end
         end)
     end
