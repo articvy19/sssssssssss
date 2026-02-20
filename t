@@ -818,7 +818,21 @@ function HopServer()
             if data and data.data then
                 for _, server in ipairs(data.data) do
                     if type(server) == "table" and server.id and server.id ~= currentJobId then
-                        if (server.playing or 0) < (server.maxPlayers or 0) then
+                        local playing = tonumber(server.playing or 0)
+                        local maxPlayers = tonumber(server.maxPlayers or 0)
+
+                        -- Notificação similar ao sistema enviado
+                        pcall(function()
+                            game.StarterGui:SetCore("SendNotification", {
+                                Title = "Hop Low Server",
+                                Text = "Players : " .. tostring(playing),
+                                Icon = "http://www.roblox.com/asset/?id=9606070311",
+                                Duration = 1.5
+                            })
+                        end)
+
+                        -- usa o critério do sistema fornecido: servidor com vaga e pelo menos 8 players
+                        if maxPlayers > playing and playing >= 8 then
                             if not getgenv().UsedServers[server.id] then
                                 foundServerId = server.id
                                 break
