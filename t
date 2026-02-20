@@ -489,7 +489,7 @@ function topos(Tween_Pos)
             and game:GetService("Players").LocalPlayer.Character.Humanoid.Health > 0 
             and game:GetService("Players").LocalPlayer.Character.HumanoidRootPart then
             if not TweenSpeed then
-                TweenSpeed = 400
+				TweenSpeed = 350
             end
             -- manter voo em altura segura para não bater na água
             local MinFlyY = 50
@@ -613,8 +613,13 @@ function to(Pos)
             if game.Players.LocalPlayer.Character.Humanoid.Sit == true then
                 game.Players.LocalPlayer.Character.Humanoid.Sit = false
             end
-            -- Velocidade fixa mais alta para chegar mais rápido ao alvo
-            Speed = 400
+            if Distance < 250 then
+                Speed = 400
+            elseif Distance < 1000 then
+                Speed = 375
+            elseif Distance >= 1000 then
+                Speed = 350
+            end
             pcall(function()
                 if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
                     -- tween em altura constante e segura para evitar água
@@ -668,6 +673,20 @@ function Ken()
         game:service("VirtualUser"):SetKeyUp("0x65")
     end
 end
+
+-- Auto Ken sempre ativo: se desativar, este loop tenta religar sozinho
+spawn(function()
+    while task.wait(2) do
+        pcall(function()
+            local rs = game:GetService("ReplicatedStorage")
+            local rem = rs:FindFirstChild("Remotes")
+            local commE = rem and rem:FindFirstChild("CommE")
+            if commE then
+                commE:FireServer("Ken", true)
+            end
+        end)
+    end
+end)
 
 function down(use)
     pcall(function()
@@ -1407,17 +1426,6 @@ spawn(function()
                     l = 0.1
                     down("Y")
                 end   
-            end
-        end)
-    end
-end)
-
--- Ativar Ken Haki
-spawn(function()
-    while wait() do
-        pcall(function()
-            if getgenv().targ and getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("HumanoidRootPart") and (getgenv().targ.Character.HumanoidRootPart.CFrame.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position).Magnitude < 40 then
-                Ken()
             end
         end)
     end
