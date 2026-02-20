@@ -690,17 +690,17 @@ spawn(function()
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
             if humanoid and hrp then
                 local safeHp = (getgenv().Setting.SafeHealth and getgenv().Setting.SafeHealth.Health) or 3000
+                local safeY = (getgenv().Setting.SafeHealth and getgenv().Setting.SafeHealth.HighY) or 1200
+
                 if humanoid.Health < safeHp then
-                    if not getgenv().SafeMode then
-                        getgenv().SafeMode = true
-                        -- Sobe 200 studs acima da posição atual
-                        hrp.CFrame = hrp.CFrame * CFrame.new(0, 200, 0)
+                    -- Ativa modo seguro e mantém o boneco alto (Y = HighY)
+                    getgenv().SafeMode = true
+                    if hrp.Position.Y < safeY then
+                        hrp.CFrame = CFrame.new(hrp.Position.X, safeY, hrp.Position.Z)
                     end
                 else
-                    if getgenv().SafeMode then
-                        -- HP recuperou: sai do modo seguro
-                        getgenv().SafeMode = false
-                    end
+                    -- HP recuperou: sai do modo seguro
+                    getgenv().SafeMode = false
                 end
             end
         end)
@@ -812,7 +812,9 @@ function HopServer()
 
         for _ = 1, 5 do -- até 5 páginas, só pra garantir
             local url = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?sortOrder=Asc&limit=100" .. (cursor and ("&cursor=" .. cursor) or "")
-            local response = HttpService:GetAsync(url)
+            -- Usa game:HttpGet como no sistema de hop fornecido, para evitar
+            -- a função que seu executor marcou como vulnerável.
+            local response = game:HttpGet(url)
             local data = HttpService:JSONDecode(response)
 
             if data and data.data then
