@@ -676,13 +676,24 @@ end
 
 -- Auto Ken sempre ativo: se desativar, este loop tenta religar sozinho
 spawn(function()
-    while task.wait(2) do
+    while task.wait(1.5) do
         pcall(function()
-            local rs = game:GetService("ReplicatedStorage")
-            local rem = rs:FindFirstChild("Remotes")
-            local commE = rem and rem:FindFirstChild("CommE")
-            if commE then
-                commE:FireServer("Ken", true)
+            local lp = game:GetService("Players").LocalPlayer
+            local pg = lp:FindFirstChild("PlayerGui")
+            local hasKen = pg and pg:FindFirstChild("ScreenGui") and pg.ScreenGui:FindFirstChild("ImageLabel")
+
+            -- Só tenta ligar Ken se não estiver ativo (sem o GUI de Ken na tela)
+            if not hasKen then
+                -- Tenta pelo remote oficial
+                local rs = game:GetService("ReplicatedStorage")
+                local rem = rs:FindFirstChild("Remotes")
+                local commE = rem and rem:FindFirstChild("CommE")
+                if commE then
+                    commE:FireServer("Ken", true)
+                end
+
+                -- E também pela tecla (fallback, caso o remote mude)
+                Ken()
             end
         end)
     end
