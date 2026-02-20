@@ -1042,7 +1042,7 @@ function target()
             -- 1) o script já está rodando há alguns segundos (evita hop logo ao entrar)
             -- 2) muitas tentativas seguidas sem achar alvo.
             -- HopServer em si checa IsRiskActive e o cooldown pós-combate.
-            if tick() - ScriptStartTime > 20 and getgenv().NoTargetCount >= 15 then
+            if tick() - ScriptStartTime > 19 and getgenv().NoTargetCount >= 10 then
                 HopServer()
             end
         else
