@@ -54,7 +54,7 @@ getgenv().Setting = {
         ["BypassTp"] = true
     },
     ["SafeHealth"] = {
-        ["Health"] = 4000,
+        ["Health"] = 3000,
         ["HighY"] = 1200
     },
     ["Melee"] = {
@@ -250,6 +250,7 @@ getgenv().pl = p:GetPlayers()
 getgenv().LastTargetHealth = nil
 getgenv().LastDamageTime = tick()
 getgenv().NoTargetCount = 0
+getgenv().SafeMode = false
 local ScriptStartTime = tick()
 wait(1)
 
@@ -677,6 +678,33 @@ if getgenv().Setting.Another.WhiteScreen then
     game.RunService:Set3dRenderingEnabled(false)
 end
 
+-- SafeMode: se o HP ficar abaixo do limite, sobe 200 de altura;
+-- quando o HP volta ao normal, desativa o modo seguro para voltar a caçar.
+spawn(function()
+    while task.wait(0.1) do
+        pcall(function()
+            local char = lp.Character
+            local humanoid = char and char:FindFirstChild("Humanoid")
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if humanoid and hrp then
+                local safeHp = (getgenv().Setting.SafeHealth and getgenv().Setting.SafeHealth.Health) or 3000
+                if humanoid.Health < safeHp then
+                    if not getgenv().SafeMode then
+                        getgenv().SafeMode = true
+                        -- Sobe 200 studs acima da posição atual
+                        hrp.CFrame = hrp.CFrame * CFrame.new(0, 200, 0)
+                    end
+                else
+                    if getgenv().SafeMode then
+                        -- HP recuperou: sai do modo seguro
+                        getgenv().SafeMode = false
+                    end
+                end
+            end
+        end)
+    end
+end)
+
 function hasValue(array, targetString)
     for _, value in ipairs(array) do
         if value == targetString then
@@ -1021,6 +1049,10 @@ spawn(function()
         end
         if getgenv().targ == nil then target() end
         pcall(function()
+            -- Se estiver em modo seguro, não se move até o alvo
+            if getgenv().SafeMode then
+                return
+            end
             if getgenv().targ and getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("HumanoidRootPart") and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
                 if game.Players.LocalPlayer.Character:FindFirstChild("Humanoid").Health > getgenv().Setting.SafeHealth.Health then
                     if getgenv().targ.Character.Humanoid.Health > 0 then
@@ -1034,10 +1066,6 @@ spawn(function()
                         print("[Auto Bounty] Alvo morreu, procurando novo...")
                         SkipPlayer()
                     end
-                else
-                    -- Health baixa: apenas troca de alvo, sem subir para o céu
-                    print("[Auto Bounty] Health baixa, trocando de alvo...")
-                    SkipPlayer()
                 end
             end
         end)
