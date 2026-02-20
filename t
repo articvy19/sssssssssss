@@ -687,21 +687,42 @@ end
 getgenv().LastRiskTime = getgenv().LastRiskTime or 0
 local RISK_HOP_COOLDOWN = 25 -- segundos após o último "risk" antes de liberar hop
 
+-- Função genérica para detectar se há algum aviso de bounty risk visível na tela
+local function IsRiskActive()
+    local lp = game.Players.LocalPlayer
+    if not lp then return false end
+    local gui = lp:FindFirstChild("PlayerGui")
+    if not gui then return false end
+
+    for _, inst in ipairs(gui:GetDescendants()) do
+        if inst:IsA("TextLabel") or inst:IsA("TextButton") then
+            local text = string.lower(inst.Text or "")
+            if text ~= "" and (string.find(text, "bounty") and string.find(text, "risk") or string.find(text, "bounty at risk") or string.find(text, "risk")) then
+                -- Verifica se esse texto realmente está visível (todos os pais visíveis)
+                local visible = inst.Visible
+                local parent = inst.Parent
+                while visible and parent and parent ~= gui do
+                    if parent:IsA("GuiObject") and not parent.Visible then
+                        visible = false
+                        break
+                    end
+                    parent = parent.Parent
+                end
+                if visible then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
 -- Monitor global do texto de InCombat para registrar quando há "risk"
 spawn(function()
     while task.wait(0.5) do
         pcall(function()
-            local lp = game.Players.LocalPlayer
-            local gui = lp and lp:FindFirstChild("PlayerGui")
-            local main = gui and gui:FindFirstChild("Main")
-            local inCombat = main and main:FindFirstChild("InCombat")
-            if inCombat then
-                local txt = string.lower(inCombat.Text or "")
-                -- Apenas registra o momento em que o aviso de risk está visível;
-                -- o efeito é só bloquear hop enquanto estiver aparecendo.
-                if inCombat.Visible and string.find(txt, "risk") then
-                    getgenv().LastRiskTime = tick()
-                end
+            if IsRiskActive() then
+                getgenv().LastRiskTime = tick()
             end
         end)
     end
@@ -818,16 +839,9 @@ end
 function HopServer()
     if getgenv().IsHopping then return end
     
-    -- Só impede hop enquanto o aviso de bounty risk estiver aparecendo
-    local lp = game.Players.LocalPlayer
-    local gui = lp and lp:FindFirstChild("PlayerGui")
-    local main = gui and gui:FindFirstChild("Main")
-    local inCombat = main and main:FindFirstChild("InCombat")
-    if inCombat then
-        local txt = string.lower(inCombat.Text or "")
-        if inCombat.Visible and string.find(txt, "risk") then
-            return
-        end
+    -- Só impede hop enquanto houver qualquer aviso de bounty risk visível
+    if IsRiskActive() then
+        return
     end
 
     local TeleportService = game:GetService("TeleportService")
@@ -953,6 +967,7 @@ function target()
             -- Só faz hop se:
             -- 1) o script já está rodando há alguns segundos (evita hop logo ao entrar)
             -- 2) várias tentativas seguidas sem achar alvo.
+            -- HopServer em si checa IsRiskActive, então aqui não precisamos olhar risk.
             if tick() - ScriptStartTime > 20 and getgenv().NoTargetCount >= 5 then
                 HopServer()
             end
