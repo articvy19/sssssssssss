@@ -70,7 +70,7 @@ getgenv().Setting = {
         ["Delay"] = 1,
         ["Z"] = {["Enable"] = true, ["HoldTime"] = 0},
         ["X"] = {["Enable"] = true, ["HoldTime"] = 0},
-        ["C"] = {["Enable"] = true, ["HoldTime"] = 1,25},
+        ["C"] = {["Enable"] = true, ["HoldTime"] = 1.25},
         ["V"] = {["Enable"] = true, ["HoldTime"] = 1.25},
         ["F"] = {["Enable"] = false, ["HoldTime"] = 0}
     },
@@ -164,6 +164,32 @@ local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 _G.Seriality = true
+
+-- Quando o personagem renascer (reset/morte), limpar estados e voltar a caçar
+pcall(function()
+    lp.CharacterAdded:Connect(function(char)
+        task.spawn(function()
+            -- espera humanoid e HRP carregarem
+            pcall(function()
+                char:WaitForChild("Humanoid")
+                char:WaitForChild("HumanoidRootPart")
+            end)
+
+            -- reseta estados de combate/safe
+            getgenv().SafeMode = false
+            getgenv().ForceSafe = false
+            getgenv().targ = nil
+            getgenv().LastTargetHealth = nil
+            getgenv().TargetStartTime = nil
+
+            -- pequena espera para o mapa/GUI estabilizar e volta a procurar alvo
+            task.wait(1.5)
+            pcall(function()
+                target()
+            end)
+        end)
+    end)
+end)
 
 local function IsEntityAlive(entity)
     if not entity then return false end
@@ -1135,11 +1161,25 @@ spawn(function()
                                 if v:IsA("Tool") and v.ToolTip == "Blox Fruit" then
                                     if getgenv().Setting.Fruit.Enable then
                                         local skillsGui = game.Players.LocalPlayer.PlayerGui.Main:FindFirstChild("Skills")
-                                        if skillsGui and skillsGui:FindFirstChild(v.Name) and skillsGui[v.Name]:FindFirstChild("X") and skillsGui[v.Name].X.Cooldown.AbsoluteSize.X <= 0 and getgenv().Setting.Fruit.X.Enable then
-                                            l = getgenv().Setting.Fruit.X.HoldTime
-                                            getgenv().LastAttackTime = tick()
-                                            down("X")
-                                        else
+                                        local usedSkill = false
+                                        if skillsGui and skillsGui:FindFirstChild(v.Name) then
+                                            local skillFrame = skillsGui[v.Name]
+                                            -- Skill X
+                                            if getgenv().Setting.Fruit.X.Enable and skillFrame:FindFirstChild("X") and skillFrame.X.Cooldown.AbsoluteSize.X <= 0 then
+                                                l = getgenv().Setting.Fruit.X.HoldTime
+                                                getgenv().LastAttackTime = tick()
+                                                down("X")
+                                                usedSkill = true
+                                            end
+                                            -- Skill C
+                                            if getgenv().Setting.Fruit.C.Enable and skillFrame:FindFirstChild("C") and skillFrame.C.Cooldown.AbsoluteSize.X <= 0 then
+                                                l = getgenv().Setting.Fruit.C.HoldTime
+                                                getgenv().LastAttackTime = tick()
+                                                down("C")
+                                                usedSkill = true
+                                            end
+                                        end
+                                        if not usedSkill then
                                             getgenv().LastAttackTime = tick()
                                             Click()
                                         end
@@ -1150,11 +1190,25 @@ spawn(function()
                             for i, v in pairs(game.Players.LocalPlayer.Character:GetChildren()) do
                                 if v:IsA("Tool") and v.ToolTip == "Blox Fruit" then
                                     local skillsGui = game.Players.LocalPlayer.PlayerGui.Main:FindFirstChild("Skills")
-                                    if skillsGui and skillsGui:FindFirstChild(v.Name) and skillsGui[v.Name]:FindFirstChild("X") and skillsGui[v.Name].X.Cooldown.AbsoluteSize.X <= 0 and getgenv().Setting.Fruit.X.Enable then
-                                        l = getgenv().Setting.Fruit.X.HoldTime
-                                        getgenv().LastAttackTime = tick()
-                                        down("X")
-                                    else
+                                    local usedSkill = false
+                                    if skillsGui and skillsGui:FindFirstChild(v.Name) then
+                                        local skillFrame = skillsGui[v.Name]
+                                        -- Skill X
+                                        if getgenv().Setting.Fruit.X.Enable and skillFrame:FindFirstChild("X") and skillFrame.X.Cooldown.AbsoluteSize.X <= 0 then
+                                            l = getgenv().Setting.Fruit.X.HoldTime
+                                            getgenv().LastAttackTime = tick()
+                                            down("X")
+                                            usedSkill = true
+                                        end
+                                        -- Skill C
+                                        if getgenv().Setting.Fruit.C.Enable and skillFrame:FindFirstChild("C") and skillFrame.C.Cooldown.AbsoluteSize.X <= 0 then
+                                            l = getgenv().Setting.Fruit.C.HoldTime
+                                            getgenv().LastAttackTime = tick()
+                                            down("C")
+                                            usedSkill = true
+                                        end
+                                    end
+                                    if not usedSkill then
                                         getgenv().LastAttackTime = tick()
                                         Click()
                                     end
