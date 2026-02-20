@@ -603,9 +603,9 @@ function to(Pos)
             if Distance < 250 then
                 Speed = 400
             elseif Distance < 1000 then
-                Speed = 375
+                Speed = 400
             elseif Distance >= 1000 then
-                Speed = 350
+                Speed = 400
             end
             pcall(function()
                 if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
@@ -1237,6 +1237,18 @@ spawn(function()
                     getgenv().HpSnapshot    = nil
                     getgenv().HpSnapshotTime = nil
                 else
+                    -- Caso especial: HP do alvo está SUBINDO e ainda não causamos
+                    -- nenhum dano confirmado nele -> provavelmente está regenerando
+                    -- de outra fonte (level up / cura / dano anterior). Troca direto.
+                    if delta > 1 and (getgenv().OurDamageCount or 0) == 0 then
+                        print("[Auto Bounty] HP do alvo subindo enquanto não causamos dano, trocando de player...")
+                        getgenv().EnvDamageCount = 0
+                        getgenv().HpSnapshot     = nil
+                        getgenv().HpSnapshotTime  = nil
+                        SkipPlayer()
+                        return
+                    end
+
                     -- HP mudou mas não foi dano nosso (regen, outro player, água, etc)
                     getgenv().EnvDamageCount = (getgenv().EnvDamageCount or 0) + 1
 
