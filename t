@@ -93,20 +93,35 @@ repeat task.wait() until game:IsLoaded()
 repeat task.wait() until game.Players
 repeat task.wait() until game.Players.LocalPlayer
 repeat task.wait() until game.Players.LocalPlayer:FindFirstChild("PlayerGui")
-repeat task.wait() until game.Players.LocalPlayer.PlayerGui:FindFirstChild("Main")
+repeat task.wait() until game.Players.LocalPlayer.PlayerGui:FindFirstChild("Main") or game.Players.LocalPlayer.PlayerGui:FindFirstChild("Main (minimal)")
 
 print("[Auto Bounty] Iniciando...")
 
---- Join Team
-if game:GetService("Players").LocalPlayer.PlayerGui.Main:FindFirstChild("ChooseTeam") then
-    repeat wait()
-        if game:GetService("Players").LocalPlayer.PlayerGui:WaitForChild("Main").ChooseTeam.Visible == true then
-            local desiredTeam = getgenv().Setting.Hunt.Team or "Pirates"
-            if desiredTeam == "Pirates" or desiredTeam == "Marines" then
-                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("SetTeam", desiredTeam)
+--- Join Team (suporta Main e Main (minimal))
+do
+    local Players = game:GetService("Players")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local lp = Players.LocalPlayer
+    local pg = lp:WaitForChild("PlayerGui")
+
+    -- espera um pouco pro GUI de time abrir
+    task.wait(5)
+
+    local mainGui = pg:FindFirstChild("Main") or pg:FindFirstChild("Main (minimal)")
+    if mainGui and mainGui:FindFirstChild("ChooseTeam") then
+        repeat
+            task.wait()
+            local choose = mainGui:FindFirstChild("ChooseTeam")
+            if choose and choose.Visible then
+                local desiredTeam = (getgenv().Setting and getgenv().Setting.Hunt and getgenv().Setting.Hunt.Team) or "Pirates"
+                if desiredTeam == "Pirates" or desiredTeam == "Marines" then
+                    pcall(function()
+                        ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer("SetTeam", desiredTeam)
+                    end)
+                end
             end
-        end
-    until game.Players.LocalPlayer.Team ~= nil and game:IsLoaded()
+        until lp.Team ~= nil and game:IsLoaded()
+    end
 end
 
 --- Check World/Tween + Bypass
