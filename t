@@ -765,7 +765,7 @@ function HopServer()
         local gui = lp and lp:FindFirstChild("PlayerGui")
         local main = gui and gui:FindFirstChild("Main")
         local inCombat = main and main:FindFirstChild("InCombat")
-        if inCombat and inCombat.Visible then
+        if inCombat then
             local txt = string.lower(inCombat.Text or "")
             if string.find(txt, "risk") then
                 return -- não faz hop em situação de risco de bounty
