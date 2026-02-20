@@ -249,6 +249,8 @@ getgenv().checked = {}
 getgenv().pl = p:GetPlayers()
 getgenv().LastTargetHealth = nil
 getgenv().LastDamageTime = tick()
+getgenv().NoTargetCount = 0
+local ScriptStartTime = tick()
 wait(1)
 
 --- Funções principais ---
@@ -813,11 +815,21 @@ function target()
             end
         end 
         if p == nil then
-            -- Nada encontrado: sem alvo válido neste servidor,
-            -- aciona hop para tentar outro.
+            -- Nada encontrado nesta varredura.
             getgenv().targ = nil
-            HopServer()
+
+            -- Conta quantas vezes seguidas não achamos alvo.
+            getgenv().NoTargetCount = (getgenv().NoTargetCount or 0) + 1
+
+            -- Só faz hop se:
+            -- 1) o script já está rodando há alguns segundos (evita hop logo ao entrar)
+            -- 2) várias tentativas seguidas sem achar alvo.
+            if tick() - ScriptStartTime > 20 and getgenv().NoTargetCount >= 5 then
+                HopServer()
+            end
         else
+            -- Achou alvo: reseta contador de falhas
+            getgenv().NoTargetCount = 0
             getgenv().targ = p
 
             -- Quando escolhe um novo alvo, inicia controle básico de HP
