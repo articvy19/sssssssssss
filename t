@@ -181,9 +181,10 @@ pcall(function()
             getgenv().targ = nil
             getgenv().LastTargetHealth = nil
             getgenv().TargetStartTime = nil
+            getgenv().NoTargetCount = 0
 
-            -- pequena espera para o mapa/GUI estabilizar e volta a procurar alvo
-            task.wait(1.5)
+            -- pequena espera rápida só pra garantir carregamento e volta a procurar alvo
+            task.wait(0.25)
             pcall(function()
                 target()
             end)
@@ -475,7 +476,9 @@ function topos(Tween_Pos)
             if not TweenSpeed then
                 TweenSpeed = 350
             end
-            local DefualtY = Tween_Pos.Y
+            -- manter voo em altura segura para não bater na água
+            local MinFlyY = 50
+            local DefualtY = math.max(Tween_Pos.Y, MinFlyY)
             local TargetY = Tween_Pos.Y
             local targetCFrameWithDefualtY = CFrame.new(Tween_Pos.X, DefualtY, Tween_Pos.Z)
             local targetPos = Tween_Pos.Position
@@ -601,7 +604,16 @@ function to(Pos)
             end
             pcall(function()
                 if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
-                    tween = game:GetService("TweenService"):Create(game.Players.LocalPlayer.Character.HumanoidRootPart,TweenInfo.new(Distance / Speed, Enum.EasingStyle.Linear),{CFrame = Pos})
+                    -- tween em altura constante e segura para evitar água
+                    local MinFlyY = 50
+                    local targetPos = Pos.Position
+                    local flyY = math.max(targetPos.Y, MinFlyY)
+                    local flyCFrame = CFrame.new(targetPos.X, flyY, targetPos.Z)
+                    tween = game:GetService("TweenService"):Create(
+                        game.Players.LocalPlayer.Character.HumanoidRootPart,
+                        TweenInfo.new(Distance / Speed, Enum.EasingStyle.Linear),
+                        {CFrame = flyCFrame}
+                    )
                     if tween then
                         tween:Play()
                     end
