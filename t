@@ -753,6 +753,34 @@ function SkipPlayer()
     target()
 end
 
+-- Hop de servidor: chamado quando não há mais players válidos
+function HopServer()
+    if getgenv().IsHopping then return end
+    
+    -- Se estiver em combate com texto de "risk", não hopa
+    local ok, err = pcall(function()
+        local lp = game.Players.LocalPlayer
+        local gui = lp and lp:FindFirstChild("PlayerGui")
+        local main = gui and gui:FindFirstChild("Main")
+        local inCombat = main and main:FindFirstChild("InCombat")
+        if inCombat and inCombat.Visible then
+            local txt = string.lower(inCombat.Text or "")
+            if string.find(txt, "risk") then
+                return -- não faz hop em situação de risco de bounty
+            end
+        end
+
+        getgenv().IsHopping = true
+        local TeleportService = game:GetService("TeleportService")
+        TeleportService:Teleport(game.PlaceId, lp)
+    end)
+
+    if not ok then
+        warn("[Auto Bounty] Erro ao tentar HopServer:", err)
+        getgenv().IsHopping = false
+    end
+end
+
 function target() 
     pcall(function()
         d = math.huge
@@ -785,10 +813,10 @@ function target()
             end
         end 
         if p == nil then
-            -- Nada encontrado: apenas mantém sem alvo; a lista
-            -- de players já atacados (checked) não é limpa para
-            -- não voltar em quem já foi focado.
+            -- Nada encontrado: sem alvo válido neste servidor,
+            -- aciona hop para tentar outro.
             getgenv().targ = nil
+            HopServer()
         else
             getgenv().targ = p
 
