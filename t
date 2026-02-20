@@ -271,6 +271,7 @@ getgenv().UsedServers = getgenv().UsedServers or {}
 getgenv().LastAttackTime = 0
 getgenv().EnvDamageCount = 0
 getgenv().OurDamageCount = 0
+getgenv().TargetStartTime = nil
 local ScriptStartTime = tick()
 wait(1)
 
@@ -847,6 +848,7 @@ function SkipPlayer()
     getgenv().killed = getgenv().targ 
     table.insert(getgenv().checked, getgenv().targ)
     getgenv().targ = nil
+    getgenv().TargetStartTime = nil
     target()
 end
 
@@ -975,6 +977,7 @@ function target()
                         if p == nil then
             -- Nada encontrado nesta varredura.
             getgenv().targ = nil
+            getgenv().TargetStartTime = nil
 
             -- Conta quantas vezes seguidas não achamos alvo.
             getgenv().NoTargetCount = (getgenv().NoTargetCount or 0) + 1
@@ -990,6 +993,7 @@ function target()
             -- Achou alvo: reseta contador de falhas
             getgenv().NoTargetCount = 0
             getgenv().targ = p
+            getgenv().TargetStartTime = tick()
 
             -- Quando escolhe um novo alvo, inicia controle básico de HP
             if getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("Humanoid") then
@@ -1207,6 +1211,26 @@ spawn(function()
         end
         if getgenv().targ == nil then target() end
         pcall(function()
+            -- Se estiver perseguindo o mesmo alvo há mais de 30s e ainda longe, pula para outro
+            if getgenv().targ and getgenv().TargetStartTime then
+                local elapsed = tick() - getgenv().TargetStartTime
+                if elapsed > 30 then
+                    local myChar = game.Players.LocalPlayer.Character
+                    local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
+                    local tChar = getgenv().targ.Character
+                    local tHrp = tChar and tChar:FindFirstChild("HumanoidRootPart")
+                    if myHrp and tHrp then
+                        local dist = (tHrp.Position - myHrp.Position).Magnitude
+                        -- Só considera "demorou demais para chegar" se ainda estiver relativamente longe
+                        if dist > 60 then
+                            print("[Auto Bounty] Demorou mais de 30s para chegar no alvo, pulando...")
+                            SkipPlayer()
+                            return
+                        end
+                    end
+                end
+            end
+
             -- Se estiver em modo seguro, não se move até o alvo
             if getgenv().SafeMode then
                 return
