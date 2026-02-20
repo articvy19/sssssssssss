@@ -101,10 +101,9 @@ print("[Auto Bounty] Iniciando...")
 if game:GetService("Players").LocalPlayer.PlayerGui.Main:FindFirstChild("ChooseTeam") then
     repeat wait()
         if game:GetService("Players").LocalPlayer.PlayerGui:WaitForChild("Main").ChooseTeam.Visible == true then
-            if getgenv().Setting.Hunt.Team == "Pirates" then
-                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("SetTeam", "Marines")
-            else
-                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("SetTeam", "Pirates")
+            local desiredTeam = getgenv().Setting.Hunt.Team or "Pirates"
+            if desiredTeam == "Pirates" or desiredTeam == "Marines" then
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("SetTeam", desiredTeam)
             end
         end
     until game.Players.LocalPlayer.Team ~= nil and game:IsLoaded()
@@ -256,6 +255,7 @@ getgenv().ForceSafe = false
 getgenv().UsedServers = getgenv().UsedServers or {}
 getgenv().LastAttackTime = 0
 getgenv().EnvDamageCount = 0
+getgenv().OurDamageCount = 0
 local ScriptStartTime = tick()
 wait(1)
 
@@ -1007,6 +1007,8 @@ function target()
             if getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("Humanoid") then
                 getgenv().LastTargetHealth = getgenv().targ.Character.Humanoid.Health
                 getgenv().LastDamageTime = tick()
+                getgenv().EnvDamageCount = 0
+                getgenv().OurDamageCount = 0
             else
                 getgenv().LastTargetHealth = nil
             end
@@ -1060,19 +1062,25 @@ spawn(function()
                     getgenv().LastTargetHealth = currentHealth
                     getgenv().LastDamageTime = tick()
                 else
-                    if math.abs(currentHealth - getgenv().LastTargetHealth) > 1 then
-                        -- Qualquer mudança de HP reseta o timer
-                        getgenv().LastTargetHealth = currentHealth
-                        getgenv().LastDamageTime = tick()
+                    local delta = currentHealth - getgenv().LastTargetHealth
+                    if math.abs(delta) > 1 then
+                        local now = tick()
+                        -- Só consideramos "nosso dano" quando o HP CAI logo depois de um ataque e muito perto do alvo
+                        local attackWindow = now - (getgenv().LastAttackTime or 0)
+                        local isOurDamage = (delta < -1) and attackWindow <= 0.25 and distance <= 25
 
-                        -- Verifica se o dano veio de nós (ataque recente e perto)
-                        local isOurDamage = (tick() - (getgenv().LastAttackTime or 0)) < 1 and distance <= 80
+                        -- Atualiza estado básico de HP/tempo
+                        getgenv().LastTargetHealth = currentHealth
+                        getgenv().LastDamageTime = now
+
                         if isOurDamage then
+                            -- Confirmamos pelo menos um dano nosso neste alvo
+                            getgenv().OurDamageCount = (getgenv().OurDamageCount or 0) + 1
                             getgenv().EnvDamageCount = 0
                         else
-                            -- Dano vindo de água/outro player/ambiente: conta e, se repetir, pula esse alvo
+                            -- Dano vindo de água/outro player/ambiente/heal: conta como "estranho" para este alvo
                             getgenv().EnvDamageCount = (getgenv().EnvDamageCount or 0) + 1
-                            if getgenv().EnvDamageCount >= 3 then
+                            if (getgenv().OurDamageCount or 0) == 0 and getgenv().EnvDamageCount >= 3 then
                                 print("[Auto Bounty] Alvo tomando dano que não é meu (provavelmente PvP off/água), pulando...")
                                 getgenv().EnvDamageCount = 0
                                 SkipPlayer()
