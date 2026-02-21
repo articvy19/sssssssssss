@@ -616,7 +616,8 @@ function topos(Tween_Pos)
 
         local Distance = (targetCFrame.Position - hrp.Position).Magnitude
         if Distance <= 300 then
-            hrp.CFrame = Tween_Pos
+            -- Mesmo em teleporte curto, mantém altura segura
+            hrp.CFrame = targetCFrame
             return
         end
 
@@ -706,7 +707,14 @@ function to(Pos)
             if game.Players.LocalPlayer.Character.Humanoid.Sit == true then
                 game.Players.LocalPlayer.Character.Humanoid.Sit = false
             end
-            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X, Pos.Y, game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z)
+            -- Garante que, ao finalizar o bypass, o Y nunca fique abaixo de 50 (evita água)
+            local MinFlyY = 50
+            local finalY = math.max(Pos.Y, MinFlyY)
+            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
+                finalY,
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
+            )
         end
     end)
 end
