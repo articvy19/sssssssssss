@@ -317,6 +317,92 @@ task.spawn(function()
     end)
 end)
 
+-- ============================================================
+-- NoCooldown + Energia Infinita + Reconnect (sempre ativos)
+-- ============================================================
+
+-- Soru / Dash sem cooldown
+spawn(function()
+    while task.wait(0.5) do
+        pcall(function()
+            if not getgc then return end
+            for _, v in ipairs(getgc()) do
+                if type(v) == "table" then
+                    if rawget(v, "LastUse") and rawget(v, "LastAfter") then
+                        v.LastUse = 0
+                        v.LastAfter = 0
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- Dodge / Geppo sem cooldown
+spawn(function()
+    while task.wait(0.5) do
+        pcall(function()
+            if not getgc then return end
+            for _, v in ipairs(getgc()) do
+                if type(v) == "table" then
+                    if rawget(v, "Cooldown") and type(v.Cooldown) == "number" and v.Cooldown > 0 then
+                        v.Cooldown = 0
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- Energia infinita
+spawn(function()
+    local plr = game:GetService("Players").LocalPlayer
+    while task.wait(0.2) do
+        pcall(function()
+            local char = plr.Character
+            if not char then return end
+            local energy = char:FindFirstChild("Energy")
+            if energy and energy:IsA("NumberValue") then
+                local maxVal = rawget(energy, "MaxValue") or energy.Value
+                energy.Value = maxVal
+            end
+        end)
+    end
+end)
+
+-- Sistema de autoreconect: se cair em tela de erro, tenta voltar para o mesmo jogo
+spawn(function()
+    local TeleportService = game:GetService("TeleportService")
+    local Players = game:GetService("Players")
+    local CoreGui = game:GetService("CoreGui")
+
+    local function Rejoin()
+        local lp = Players.LocalPlayer
+        if not lp then return end
+        pcall(function()
+            TeleportService:Teleport(game.PlaceId, lp)
+        end)
+    end
+
+    -- Observa prompts de erro padrão do Roblox
+    pcall(function()
+        local promptGui = CoreGui:WaitForChild("RobloxPromptGui", 10)
+        if not promptGui then return end
+        local overlay = promptGui:WaitForChild("promptOverlay", 10)
+        if not overlay then return end
+
+        overlay.ChildAdded:Connect(function(child)
+            pcall(function()
+                -- Quando aparecer um ErrorPrompt, aguarda um pouco e tenta reentrar
+                if string.find(child.Name, "ErrorPrompt") then
+                    task.wait(2)
+                    Rejoin()
+                end
+            end)
+        end)
+    end)
+end)
+
 getgenv().weapon = nil
 getgenv().targ = nil 
 getgenv().lasttarrget = nil
@@ -604,7 +690,7 @@ function StopTween(target)
                 tween = nil
             end            
             local player = game:GetService("Players").LocalPlayer
-            local character = player and character
+            local character = player and player.Character
             local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
             if humanoidRootPart then
                 humanoidRootPart.Anchored = true
