@@ -1538,6 +1538,16 @@ spawn(function()
                 if game.Players.LocalPlayer.Character:FindFirstChild("Humanoid").Health > getgenv().Setting.SafeHealth.Health then
                     if getgenv().targ.Character.Humanoid.Health > 0 then
                         local distance = (getgenv().targ.Character.HumanoidRootPart.CFrame.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position).Magnitude
+                        -- Dash constante (Soru/Q) o tempo todo enquanto tiver alvo
+                        if not getgenv().LastDashTime then
+                            getgenv().LastDashTime = 0
+                        end
+                        if tick() - getgenv().LastDashTime > 0.3 then
+                            l = 0.05
+                            getgenv().LastDashTime = tick()
+                            down("Q")
+                        end
+
                         if distance < 40 then
                             topos(CFrame.new(getgenv().targ.Character.HumanoidRootPart.Position + getgenv().targ.Character.HumanoidRootPart.CFrame.LookVector * 5, getgenv().targ.Character.HumanoidRootPart.Position))
                         else
