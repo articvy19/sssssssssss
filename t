@@ -151,6 +151,28 @@ end
 
 local p = game.Players
 local lp = p.LocalPlayer
+local Plr = lp
+local Blacklist = Blacklist or {}
+
+task.spawn(function()
+    while task.wait(1) do
+        pcall(function()
+            for _, g in pairs(Plr.PlayerGui:GetDescendants()) do
+                if g:IsA("TextLabel") and g.Visible then
+                    local t = g.Text:lower()
+                    if t:find("safe zone") or t:find("zona segura") then
+                        if _G.Target then
+                            table.insert(Blacklist, _G.Target.Name)
+                            _G.Target = nil
+                        end
+                        break
+                    end
+                end
+            end
+        end)
+    end
+end)
+
 local rs = game.RunService
 local hb = rs.Heartbeat
 local rends = rs.RenderStepped
