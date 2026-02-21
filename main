@@ -3860,78 +3860,116 @@ General_Tab:Toggle("Auto Farm","9606294253",_G.Setting_table.AutoFarm,function(v
 	_G.Setting_table.AutoFarm = vu
 	Update_Setting(getgenv()['MyName'])
 end)
-	local plr = game.Players.LocalPlayer
-	local CbFw = getupvalues(require(plr.PlayerScripts.CombatFramework))
-	local CbFw2 = CbFw[2]
 
-    function GetCurrentBlade() 
-        local p13 = CbFw2.activeController
-        local ret = p13.blades[1]
-        if not ret then return end
-        while ret.Parent~=game.Players.LocalPlayer.Character do ret=ret.Parent end
-        return ret
-    end
+	local plr = game.Players.LocalPlayer
+	local CbFw2
+
+	pcall(function()
+		local getup = getupvalues or (debug and debug.getupvalues)
+		if getup then
+			local CbFw = getup(require(plr.PlayerScripts.CombatFramework))
+			CbFw2 = CbFw[2]
+		end
+	end)
+
+	local function BasicAttack()
+		pcall(function()
+			local vu = game:GetService("VirtualUser")
+			vu:Button1Down(Vector2.new(0, 0))
+			vu:Button1Up(Vector2.new(0, 0))
+		end)
+	end
+
+	function GetCurrentBlade() 
+		if not CbFw2 or not CbFw2.activeController or not CbFw2.activeController.blades then
+			return
+		end
+		local p13 = CbFw2.activeController
+		local ret = p13.blades[1]
+		if not ret then return end
+		while ret.Parent~=game.Players.LocalPlayer.Character do ret=ret.Parent end
+		return ret
+	end
     
-    function AttackNoCD()
-        if not Auto_Farm_Bounty and not Auto_Farm_Fruit or Mix_Farm then
-            if not Auto_Raid then
-                local AC = CbFw2.activeController
-                for i = 1, 1 do 
-                    local bladehit = require(game.ReplicatedStorage.CombatFramework.RigLib).getBladeHits(
-                        plr.Character,
-                        {plr.Character.HumanoidRootPart},
-                        60
-                    )
-                    local cac = {}
-                    local hash = {}
-                    for k, v in pairs(bladehit) do
-                        if v.Parent:FindFirstChild("HumanoidRootPart") and not hash[v.Parent] then
-                            table.insert(cac, v.Parent.HumanoidRootPart)
-                            hash[v.Parent] = true
-                        end
-                    end
-                    bladehit = cac
-                    if #bladehit > 0 then
-                        local u8 = debug.getupvalue(AC.attack, 5)
-                        local u9 = debug.getupvalue(AC.attack, 6)
-                        local u7 = debug.getupvalue(AC.attack, 4)
-                        local u10 = debug.getupvalue(AC.attack, 7)
-                        local u12 = (u8 * 798405 + u7 * 727595) % u9
-                        local u13 = u7 * 798405
-                        (function()
-                            u12 = (u12 * u9 + u13) % 1099511627776
-                            u8 = math.floor(u12 / u9)
-                            u7 = u12 - u8 * u9
-                        end)()
-                        u10 = u10 + 1
-                        debug.setupvalue(AC.attack, 5, u8)
-                        debug.setupvalue(AC.attack, 6, u9)
-                        debug.setupvalue(AC.attack, 4, u7)
-                        debug.setupvalue(AC.attack, 7, u10)
-                        pcall(function()
-                            if plr.Character:FindFirstChildOfClass("Tool") and AC.blades and AC.blades[1] then
-                                AC.animator.anims.basic[1]:Play(0.01,0.01,0.01)
-                                game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("weaponChange",tostring(GetCurrentBlade()))
-                                game.ReplicatedStorage.Remotes.Validator:FireServer(math.floor(u12 / 1099511627776 * 16777215), u10)
-                                game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("hit", bladehit, i, "")
-                            end
-                        end)
-                    end
-                end
-            end
-        end
-        if Auto_Farm_Bounty or Auto_Farm_Fruit and not Mix_Farm then
-            local Fast = getupvalues(require(game:GetService("Players").LocalPlayer.PlayerScripts.CombatFramework))
-            local Lop = Fast[2]
-            Lop.activeController.timeToNextAttack = (-math.huge^math.huge*math.huge)
-            Lop.activeController.attacking = false
-            Lop.activeController.timeToNextBlock = 0
-            Lop.activeController.humanoid.AutoRotate = 80
-            Lop.activeController.increment = 3
-            Lop.activeController.blocking = false
-            Lop.activeController.hitboxMagnitude = 80
-        end
-    end
+	function AttackNoCD()
+		if not CbFw2 or not CbFw2.activeController then
+			BasicAttack()
+			return
+		end
+		local AC = CbFw2.activeController
+
+		if not Auto_Farm_Bounty and not Auto_Farm_Fruit or Mix_Farm then
+			if not Auto_Raid then
+				for i = 1, 1 do 
+					local bladehit = require(game.ReplicatedStorage.CombatFramework.RigLib).getBladeHits(
+						plr.Character,
+						{plr.Character.HumanoidRootPart},
+						60
+					)
+					local cac = {}
+					local hash = {}
+					for k, v in pairs(bladehit) do
+						if v.Parent:FindFirstChild("HumanoidRootPart") and not hash[v.Parent] then
+							table.insert(cac, v.Parent.HumanoidRootPart)
+							hash[v.Parent] = true
+						end
+					end
+					bladehit = cac
+					if #bladehit > 0 then
+					local ok, err = pcall(function()
+						local getup = getupvalues or (debug and debug.getupvalues)
+						if not getup then
+							return
+						end
+						local u8 = getup(AC.attack, 5)
+						local u9 = getup(AC.attack, 6)
+						local u7 = getup(AC.attack, 4)
+						local u10 = getup(AC.attack, 7)
+						local u12 = (u8 * 798405 + u7 * 727595) % u9
+						local u13 = u7 * 798405
+						(function()
+							u12 = (u12 * u9 + u13) % 1099511627776
+							u8 = math.floor(u12 / u9)
+							u7 = u12 - u8 * u9
+						end)()
+						u10 = u10 + 1
+						debug.setupvalue(AC.attack, 5, u8)
+						debug.setupvalue(AC.attack, 6, u9)
+						debug.setupvalue(AC.attack, 4, u7)
+						debug.setupvalue(AC.attack, 7, u10)
+						if plr.Character:FindFirstChildOfClass("Tool") and AC.blades and AC.blades[1] then
+							AC.animator.anims.basic[1]:Play(0.01,0.01,0.01)
+							game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("weaponChange",tostring(GetCurrentBlade()))
+							game.ReplicatedStorage.Remotes.Validator:FireServer(math.floor(u12 / 1099511627776 * 16777215), u10)
+							game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("hit", bladehit, i, "")
+						end
+					end)
+					if not ok then
+						BasicAttack()
+					end
+					end
+				end
+			end
+		end
+
+		if Auto_Farm_Bounty or Auto_Farm_Fruit and not Mix_Farm then
+			pcall(function()
+				local getup = getupvalues or (debug and debug.getupvalues)
+				if not getup then
+					return
+				end
+				local Fast = getup(require(game:GetService("Players").LocalPlayer.PlayerScripts.CombatFramework))
+				local Lop = Fast[2]
+				Lop.activeController.timeToNextAttack = (-math.huge^math.huge*math.huge)
+				Lop.activeController.attacking = false
+				Lop.activeController.timeToNextBlock = 0
+				Lop.activeController.humanoid.AutoRotate = 80
+				Lop.activeController.increment = 3
+				Lop.activeController.blocking = false
+				Lop.activeController.hitboxMagnitude = 80
+			end)
+		end
+	end
 spawn(function()
 	while wait(.1) do
 		pcall(function()
