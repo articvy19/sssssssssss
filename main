@@ -3695,17 +3695,164 @@ game.StarterGui:SetCore("SendNotification", {
 	Duration = 8000
 })
 
-local win = library:Window("Switch",[[Hub]],[[Version : Leak  ]],"9606070311",Enum.KeyCode.RightControl)
-local General_Tab = win:Tab("General",[[7040391851]])
-local Quest_Tab = win:Tab("    Quest & Item",[[9606626859]])
-local PvP_Tab = win:Tab("PvP",[[9606626034]])
-local Raid_Tab = win:Tab("Raid",[[9606629300]])
-local Shop_Tab = win:Tab("Shop",[[9606625251]])
-local Island_Tab = win:Tab("Island",[[9606628205]])
-local Setting_Tab = win:Tab("Setting",[[9606644121]])
-local Status_Tab = win:Tab("Status",[[9613645002]])
-local Esp_Tab = win:Tab("ESP",[[9606628205]])
-local Hop_Tab = win:Tab("Hop",[[9608089732]])
+-- Interface Fluent
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+
+local Window = Fluent:CreateWindow({
+	Title = "Allan Hub",
+	SubTitle = " X Main",
+	TabWidth = 155,
+	Size = UDim2.fromOffset(500, 350),
+	Acrylic = false,
+	Theme = "Luffy",
+	MinimizeKey = Enum.KeyCode.RightAlt
+})
+
+local function WrapTab(tab)
+	local wrapper = {}
+
+	function wrapper:Label(text)
+		tab:AddParagraph({
+			Title = text,
+			Content = ""
+		})
+	end
+
+	function wrapper:LabelP(text)
+		tab:AddParagraph({
+			Title = text,
+			Content = ""
+		})
+	end
+
+	function wrapper:Seperator(text)
+		tab:AddSection(text)
+	end
+
+	function wrapper:Line()
+		tab:AddSection("")
+	end
+
+	function wrapper:Toggle(name, _iconId, default, callback)
+		local toggle = tab:AddToggle(name, {
+			Title = name,
+			Default = default or false
+		})
+		if callback then
+			toggle:OnChanged(function(value)
+				callback(value)
+			end)
+		end
+		return toggle
+	end
+
+	function wrapper:Button(name, callback)
+		TabButton = tab:AddButton({
+			Title = name,
+			Callback = function()
+				if callback then
+					callback()
+				end
+			end
+		})
+		return TabButton
+	end
+
+	function wrapper:Slider(text, min, max, default, callback)
+		local slider = tab:AddSlider(text, {
+			Title = text,
+			Min = min or 0,
+			Max = max or 100,
+			Default = default or min or 0
+		})
+		if callback then
+			slider:OnChanged(function(value)
+				callback(value)
+			end)
+		end
+		return slider
+	end
+
+	function wrapper:Textbox(text, _disappear, callback)
+		local input = tab:AddInput(text, {
+			Title = text,
+			Default = "",
+			Placeholder = "",
+			Numeric = false,
+			Finished = true,
+			ClearTextOnFocus = false
+		})
+		if callback then
+			input:OnChanged(function(value)
+				callback(value)
+			end)
+		end
+		return input
+	end
+
+	function wrapper:Dropdown(text, current, values, callback)
+		local opts = {}
+		if typeof(values) == "table" then
+			for _, v in ipairs(values) do
+				table.insert(opts, v)
+			end
+		end
+
+		local dropdown = tab:AddDropdown(text, {
+			Title = text,
+			Values = opts,
+			Default = current,
+			Multi = false
+		})
+
+		if callback then
+			dropdown:OnChanged(function(value)
+				callback(value)
+			end)
+		end
+
+		local api = {}
+
+		function api:Clear()
+			opts = {}
+			dropdown:SetValues(opts)
+		end
+
+		function api:Add(v)
+			table.insert(opts, v)
+			dropdown:SetValues(opts)
+		end
+
+		return api
+	end
+
+	function wrapper:Page(_)
+		return self
+	end
+
+	return wrapper
+end
+
+local win = {}
+
+function win:Tab(title, iconId)
+	local tab = Window:AddTab({
+		Title = title,
+		Icon = "rbxassetid://" .. tostring(iconId or "")
+	})
+	return WrapTab(tab)
+end
+
+local General_Tab = win:Tab("General", 7040391851)
+local Quest_Tab = win:Tab("    Quest & Item", 9606626859)
+local PvP_Tab = win:Tab("PvP", 9606626034)
+local Raid_Tab = win:Tab("Raid", 9606629300)
+local Shop_Tab = win:Tab("Shop", 9606625251)
+local Island_Tab = win:Tab("Island", 9606628205)
+local Setting_Tab = win:Tab("Setting", 9606644121)
+local Status_Tab = win:Tab("Status", 9613645002)
+local Esp_Tab = win:Tab("ESP", 9606628205)
+local Hop_Tab = win:Tab("Hop", 9608089732)
 General_Tab:Label("Farm Level")
 
 General_Tab:Toggle("Auto Farm","9606294253",_G.Setting_table.AutoFarm,function(vu)
