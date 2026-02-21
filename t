@@ -431,7 +431,6 @@ getgenv().LastTeleportTime = getgenv().LastTeleportTime or 0
 getgenv().HpSnapshot = nil
 getgenv().HpSnapshotTime = nil
 getgenv().CurrentTweenTarget = getgenv().CurrentTweenTarget or nil
-getgenv().LastDashTime = getgenv().LastDashTime or 0
 local ScriptStartTime = tick()
 wait(1)
 
@@ -700,7 +699,7 @@ function StopTween(target)
                 tween = nil
             end            
             local player = game:GetService("Players").LocalPlayer
-            local character = player and player.Character
+            local character = player and character
             local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
             if humanoidRootPart then
                 humanoidRootPart.Anchored = true
@@ -1600,12 +1599,6 @@ spawn(function()
                         if distance < 40 then
                             topos(CFrame.new(getgenv().targ.Character.HumanoidRootPart.Position + getgenv().targ.Character.HumanoidRootPart.CFrame.LookVector * 5, getgenv().targ.Character.HumanoidRootPart.Position))
                         else
-                            -- Enquanto estiver indo até o inimigo (mais longe), usa dash/Q de tempos em tempos
-                            if distance > 60 and tick() - (getgenv().LastDashTime or 0) > 0.75 then
-                                l = 0.05
-                                getgenv().LastDashTime = tick()
-                                down("Q")
-                            end
                             topos(getgenv().targ.Character.HumanoidRootPart.CFrame*CFrame.new(0,10,0))
                         end
                     else
