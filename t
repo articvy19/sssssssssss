@@ -151,36 +151,6 @@ end
 
 local p = game.Players
 local lp = p.LocalPlayer
-local Plr = lp
-local Blacklist = Blacklist or {}
-
-task.spawn(function()
-    while task.wait(1) do
-        pcall(function()
-            for _, g in pairs(Plr.PlayerGui:GetDescendants()) do
-                if g:IsA("TextLabel") and g.Visible then
-                    local t = g.Text:lower()
-                    if t:find("safe zone") or t:find("zona segura") then
-                        -- Quando detecta texto de safe zone, coloca o alvo atual na Blacklist
-                        local currentTarget = getgenv().targ or _G.Target
-                        if currentTarget and currentTarget.Name then
-                            table.insert(Blacklist, currentTarget.Name)
-                            -- limpa alvo do script
-                            if getgenv().targ == currentTarget then
-                                getgenv().targ = nil
-                            end
-                            if _G.Target == currentTarget then
-                                _G.Target = nil
-                            end
-                        end
-                        break
-                    end
-                end
-            end
-        end)
-    end
-end)
-
 local rs = game.RunService
 local hb = rs.Heartbeat
 local rends = rs.RenderStepped
@@ -325,93 +295,6 @@ task.spawn(function()
     end)
 end)
 
--- ============================================================
--- NoCooldown + Energia Infinita + Reconnect (sempre ativos)
--- ============================================================
-
--- Soru / Dash sem cooldown
-spawn(function()
-    while task.wait(0.5) do
-        pcall(function()
-            if not getgc then return end
-            for _, v in ipairs(getgc()) do
-                if type(v) == "table" then
-                    if rawget(v, "LastUse") and rawget(v, "LastAfter") then
-                        v.LastUse = 0
-                        v.LastAfter = 0
-                    end
-                end
-            end
-        end)
-    end
-    
-end)
-
--- Dodge / Geppo sem cooldown
-spawn(function()
-    while task.wait(0.5) do
-        pcall(function()
-            if not getgc then return end
-            for _, v in ipairs(getgc()) do
-                if type(v) == "table" then
-                    if rawget(v, "Cooldown") and type(v.Cooldown) == "number" and v.Cooldown > 0 then
-                        v.Cooldown = 0
-                    end
-                end
-            end
-        end)
-    end
-end)
-
--- Energia infinita
-spawn(function()
-    local plr = game:GetService("Players").LocalPlayer
-    while task.wait(0.2) do
-        pcall(function()
-            local char = plr.Character
-            if not char then return end
-            local energy = char:FindFirstChild("Energy")
-            if energy and energy:IsA("NumberValue") then
-                local maxVal = rawget(energy, "MaxValue") or energy.Value
-                energy.Value = maxVal
-            end
-        end)
-    end
-end)
-
--- Sistema de autoreconect: se cair em tela de erro, tenta voltar para o mesmo jogo
-spawn(function()
-    local TeleportService = game:GetService("TeleportService")
-    local Players = game:GetService("Players")
-    local CoreGui = game:GetService("CoreGui")
-
-    local function Rejoin()
-        local lp = Players.LocalPlayer
-        if not lp then return end
-        pcall(function()
-            TeleportService:Teleport(game.PlaceId, lp)
-        end)
-    end
-
-    -- Observa prompts de erro padrão do Roblox
-    pcall(function()
-        local promptGui = CoreGui:WaitForChild("RobloxPromptGui", 10)
-        if not promptGui then return end
-        local overlay = promptGui:WaitForChild("promptOverlay", 10)
-        if not overlay then return end
-
-        overlay.ChildAdded:Connect(function(child)
-            pcall(function()
-                -- Quando aparecer um ErrorPrompt, aguarda um pouco e tenta reentrar
-                if string.find(child.Name, "ErrorPrompt") then
-                    task.wait(2)
-                    Rejoin()
-                end
-            end)
-        end)
-    end)
-end)
-
 getgenv().weapon = nil
 getgenv().targ = nil 
 getgenv().lasttarrget = nil
@@ -427,7 +310,6 @@ getgenv().LastAttackTime = 0
 getgenv().EnvDamageCount = 0
 getgenv().OurDamageCount = 0
 getgenv().TargetStartTime = nil
-getgenv().LastTeleportTime = getgenv().LastTeleportTime or 0
 getgenv().HpSnapshot = nil
 getgenv().HpSnapshotTime = nil
 local ScriptStartTime = tick()
@@ -598,37 +480,91 @@ end
 
 function topos(Tween_Pos)
     pcall(function()
-        local plr = game:GetService("Players").LocalPlayer
-        local char = plr and plr.Character
-        local hum = char and char:FindFirstChild("Humanoid")
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if not (plr and char and hum and hrp and hum.Health > 0) then return end
-
-        if not TweenSpeed then
-			TweenSpeed = 350
+        if game:GetService("Players").LocalPlayer 
+            and game:GetService("Players").LocalPlayer.Character 
+            and game:GetService("Players").LocalPlayer.Character:FindFirstChild("Humanoid") 
+            and game:GetService("Players").LocalPlayer.Character:FindFirstChild("HumanoidRootPart") 
+            and game:GetService("Players").LocalPlayer.Character.Humanoid.Health > 0 
+            and game:GetService("Players").LocalPlayer.Character.HumanoidRootPart then
+            if not TweenSpeed then
+                TweenSpeed = 350
+            end
+            -- manter voo em altura segura para não bater na água
+            local MinFlyY = 50
+            local DefualtY = math.max(Tween_Pos.Y, MinFlyY)
+            local TargetY = Tween_Pos.Y
+            local targetCFrameWithDefualtY = CFrame.new(Tween_Pos.X, DefualtY, Tween_Pos.Z)
+            local targetPos = Tween_Pos.Position
+            local oldcframe = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
+            local Distance = (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude
+            if Distance <= 300 then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = Tween_Pos
+                return
+            end
+            local aM = CheckNearestTeleporter(Tween_Pos)
+            if aM then
+                pcall(function()
+                    if tween then tween:Cancel() end
+                end)
+                requestEntrance(aM)
+            end
+            local b1 = CFrame.new(
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
+                DefualtY,
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
+            )
+            local IngoreY = true
+            if IngoreY and (b1.Position - targetCFrameWithDefualtY.Position).Magnitude > 5 then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
+                    DefualtY,
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
+                )
+                local tweenfunc = {}
+                local aN = game:GetService("TweenService")
+                local aO = TweenInfo.new(
+                    (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude / TweenSpeed,
+                    Enum.EasingStyle.Linear
+                )
+                tween = aN:Create(
+                    game:GetService("Players").LocalPlayer.Character["HumanoidRootPart"],
+                    aO,
+                    {CFrame = targetCFrameWithDefualtY}
+                )
+                tween:Play()
+                function tweenfunc:Stop()
+                    tween:Cancel()
+                end
+                tween.Completed:Wait()
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
+                    TargetY,
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
+                )
+            else
+                local tweenfunc = {}
+                local aN = game:GetService("TweenService")
+                local aO = TweenInfo.new(
+                    (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude / TweenSpeed,
+                    Enum.EasingStyle.Linear
+                )
+                tween = aN:Create(
+                    game:GetService("Players").LocalPlayer.Character["HumanoidRootPart"],
+                    aO,
+                    {CFrame = Tween_Pos}
+                )
+                tween:Play()
+                function tweenfunc:Stop()
+                    tween:Cancel()
+                end
+                tween.Completed:Wait()
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
+                    TargetY,
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
+                )
+            end
         end
-
-        -- manter voo em altura segura para não bater na água
-        local MinFlyY = 50
-        local targetPos = Tween_Pos.Position
-        local safeY = math.max(targetPos.Y, MinFlyY)
-        local targetCFrame = CFrame.new(targetPos.X, safeY, targetPos.Z)
-
-        local Distance = (targetCFrame.Position - hrp.Position).Magnitude
-        if Distance <= 300 then
-            hrp.CFrame = Tween_Pos
-            return
-        end
-
-        -- Tween simples: sempre cancela o anterior e cria um novo direto para o alvo
-        if tween then
-            pcall(function() tween:Cancel() end)
-        end
-
-        local tweenService = game:GetService("TweenService")
-        local info = TweenInfo.new(Distance / TweenSpeed, Enum.EasingStyle.Linear)
-        tween = tweenService:Create(hrp, info, {CFrame = targetCFrame})
-        tween:Play()
     end)
 end
 
@@ -732,31 +668,6 @@ function Ken()
         game:service("VirtualUser"):SetKeyUp("0x65")
     end
 end
-
--- Auto Ken sempre ativo: se desativar, este loop tenta religar sozinho
-spawn(function()
-    while task.wait(1.5) do
-        pcall(function()
-            local lp = game:GetService("Players").LocalPlayer
-            local pg = lp:FindFirstChild("PlayerGui")
-            local hasKen = pg and pg:FindFirstChild("ScreenGui") and pg.ScreenGui:FindFirstChild("ImageLabel")
-
-            -- Só tenta ligar Ken se não estiver ativo (sem o GUI de Ken na tela)
-            if not hasKen then
-                -- Tenta pelo remote oficial
-                local rs = game:GetService("ReplicatedStorage")
-                local rem = rs:FindFirstChild("Remotes")
-                local commE = rem and rem:FindFirstChild("CommE")
-                if commE then
-                    commE:FireServer("Ken", true)
-                end
-
-                -- E também pela tecla (fallback, caso o remote mude)
-                Ken()
-            end
-        end)
-    end
-end)
 
 function down(use)
     pcall(function()
@@ -1118,7 +1029,6 @@ function target()
                     if v ~= lp and v ~= getgenv().targ and IsValidPlayerTarget(v)
                        and hrp and myHrp
                        and not IsInSafeZone(hrp.Position)
-                       and not hasValue(Blacklist, v.Name)
                        and (hrp.Position - myHrp.Position).Magnitude < d
                        and hasValue(getgenv().checked, v) == false
                        and hrp.Position.Y <= 12000 then
@@ -1335,18 +1245,6 @@ spawn(function()
                     getgenv().HpSnapshot    = nil
                     getgenv().HpSnapshotTime = nil
                 else
-                    -- Caso especial: HP do alvo está SUBINDO e ainda não causamos
-                    -- nenhum dano confirmado nele -> provavelmente está regenerando
-                    -- de outra fonte (level up / cura / dano anterior). Troca direto.
-                    if delta > 1 and (getgenv().OurDamageCount or 0) == 0 then
-                        print("[Auto Bounty] HP do alvo subindo enquanto não causamos dano, trocando de player...")
-                        getgenv().EnvDamageCount = 0
-                        getgenv().HpSnapshot     = nil
-                        getgenv().HpSnapshotTime  = nil
-                        SkipPlayer()
-                        return
-                    end
-
                     -- HP mudou mas não foi dano nosso (regen, outro player, água, etc)
                     getgenv().EnvDamageCount = (getgenv().EnvDamageCount or 0) + 1
 
@@ -1497,6 +1395,17 @@ spawn(function()
                     l = 0.1
                     down("Y")
                 end   
+            end
+        end)
+    end
+end)
+
+-- Ativar Ken Haki
+spawn(function()
+    while wait() do
+        pcall(function()
+            if getgenv().targ and getgenv().targ.Character and getgenv().targ.Character:FindFirstChild("HumanoidRootPart") and (getgenv().targ.Character.HumanoidRootPart.CFrame.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position).Magnitude < 40 then
+                Ken()
             end
         end)
     end
