@@ -161,9 +161,17 @@ task.spawn(function()
                 if g:IsA("TextLabel") and g.Visible then
                     local t = g.Text:lower()
                     if t:find("safe zone") or t:find("zona segura") then
-                        if _G.Target then
-                            table.insert(Blacklist, _G.Target.Name)
-                            _G.Target = nil
+                        -- Quando detecta texto de safe zone, coloca o alvo atual na Blacklist
+                        local currentTarget = getgenv().targ or _G.Target
+                        if currentTarget and currentTarget.Name then
+                            table.insert(Blacklist, currentTarget.Name)
+                            -- limpa alvo do script
+                            if getgenv().targ == currentTarget then
+                                getgenv().targ = nil
+                            end
+                            if _G.Target == currentTarget then
+                                _G.Target = nil
+                            end
                         end
                         break
                     end
@@ -336,6 +344,7 @@ spawn(function()
             end
         end)
     end
+    
 end)
 
 -- Dodge / Geppo sem cooldown
@@ -422,6 +431,7 @@ getgenv().LastTeleportTime = getgenv().LastTeleportTime or 0
 getgenv().HpSnapshot = nil
 getgenv().HpSnapshotTime = nil
 getgenv().CurrentTweenTarget = getgenv().CurrentTweenTarget or nil
+getgenv().LastDashTime = getgenv().LastDashTime or 0
 local ScriptStartTime = tick()
 wait(1)
 
@@ -1167,6 +1177,7 @@ function target()
                     if v ~= lp and v ~= getgenv().targ and IsValidPlayerTarget(v)
                        and hrp and myHrp
                        and not IsInSafeZone(hrp.Position)
+                       and not hasValue(Blacklist, v.Name)
                        and (hrp.Position - myHrp.Position).Magnitude < d
                        and hasValue(getgenv().checked, v) == false
                        and hrp.Position.Y <= 12000 then
@@ -1589,6 +1600,12 @@ spawn(function()
                         if distance < 40 then
                             topos(CFrame.new(getgenv().targ.Character.HumanoidRootPart.Position + getgenv().targ.Character.HumanoidRootPart.CFrame.LookVector * 5, getgenv().targ.Character.HumanoidRootPart.Position))
                         else
+                            -- Enquanto estiver indo até o inimigo (mais longe), usa dash/Q de tempos em tempos
+                            if distance > 60 and tick() - (getgenv().LastDashTime or 0) > 0.75 then
+                                l = 0.05
+                                getgenv().LastDashTime = tick()
+                                down("Q")
+                            end
                             topos(getgenv().targ.Character.HumanoidRootPart.CFrame*CFrame.new(0,10,0))
                         end
                     else
