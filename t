@@ -430,7 +430,6 @@ getgenv().TargetStartTime = nil
 getgenv().LastTeleportTime = getgenv().LastTeleportTime or 0
 getgenv().HpSnapshot = nil
 getgenv().HpSnapshotTime = nil
-getgenv().CurrentTweenTarget = getgenv().CurrentTweenTarget or nil
 local ScriptStartTime = tick()
 wait(1)
 
@@ -599,94 +598,37 @@ end
 
 function topos(Tween_Pos)
     pcall(function()
-        if game:GetService("Players").LocalPlayer 
-            and game:GetService("Players").LocalPlayer.Character 
-            and game:GetService("Players").LocalPlayer.Character:FindFirstChild("Humanoid") 
-            and game:GetService("Players").LocalPlayer.Character:FindFirstChild("HumanoidRootPart") 
-            and game:GetService("Players").LocalPlayer.Character.Humanoid.Health > 0 
-            and game:GetService("Players").LocalPlayer.Character.HumanoidRootPart then
-            if not TweenSpeed then
-				TweenSpeed = 350
-            end
-            -- manter voo em altura segura para não bater na água
-            local MinFlyY = 50
-            local DefualtY = math.max(Tween_Pos.Y, MinFlyY)
-            local TargetY = Tween_Pos.Y
-            local targetCFrameWithDefualtY = CFrame.new(Tween_Pos.X, DefualtY, Tween_Pos.Z)
-            local targetPos = Tween_Pos.Position
-            local oldcframe = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
-            local Distance = (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude
-            if Distance <= 300 then
-                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = Tween_Pos
-                return
-            end
-            local aM = CheckNearestTeleporter(Tween_Pos)
-            -- Usa teleporte só de tempos em tempos para evitar spam
-            if aM and (tick() - (getgenv().LastTeleportTime or 0) > 5) then
-                getgenv().LastTeleportTime = tick()
-                pcall(function()
-                    if tween then tween:Cancel() end
-                end)
-                requestEntrance(aM)
-            end
-            local b1 = CFrame.new(
-                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
-                DefualtY,
-                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
-            )
-            local IngoreY = true
+        local plr = game:GetService("Players").LocalPlayer
+        local char = plr and plr.Character
+        local hum = char and char:FindFirstChild("Humanoid")
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not (plr and char and hum and hrp and hum.Health > 0) then return end
 
-            -- Se já existe um tween em andamento e o alvo não mudou muito de posição,
-            -- deixa o tween atual continuar para evitar ficar "dando voadinha e parando".
-            if tween and getgenv().CurrentTweenTarget then
-                local distToOldTarget = (getgenv().CurrentTweenTarget - targetPos).Magnitude
-                if distToOldTarget < 20 and tween.PlaybackState == Enum.PlaybackState.Playing then
-                    return
-                end
-            end
-
-            if IngoreY and (b1.Position - targetCFrameWithDefualtY.Position).Magnitude > 5 then
-                -- Cancela tween antigo para atualizar sempre para a posição mais recente do alvo
-                if tween then
-                    pcall(function() tween:Cancel() end)
-                end
-                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
-                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.X,
-                    DefualtY,
-                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Z
-                )
-                local tweenfunc = {}
-                local aN = game:GetService("TweenService")
-                local aO = TweenInfo.new(
-                    (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude / TweenSpeed,
-                    Enum.EasingStyle.Linear
-                )
-                tween = aN:Create(
-                    game:GetService("Players").LocalPlayer.Character["HumanoidRootPart"],
-                    aO,
-                    {CFrame = targetCFrameWithDefualtY}
-                )
-                getgenv().CurrentTweenTarget = targetPos
-                tween:Play()
-            else
-                if tween then
-                    pcall(function() tween:Cancel() end)
-                end
-                local tweenfunc = {}
-                local aN = game:GetService("TweenService")
-                local aO = TweenInfo.new(
-                    (targetPos - game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position).Magnitude / TweenSpeed,
-                    Enum.EasingStyle.Linear
-                )
-                tween = aN:Create(
-                    game:GetService("Players").LocalPlayer.Character["HumanoidRootPart"],
-                    aO,
-                    {CFrame = Tween_Pos}
-                )
-                getgenv().CurrentTweenTarget = targetPos
-                tween:Play()
-            end
+        if not TweenSpeed then
+			TweenSpeed = 350
         end
+
+        -- manter voo em altura segura para não bater na água
+        local MinFlyY = 50
+        local targetPos = Tween_Pos.Position
+        local safeY = math.max(targetPos.Y, MinFlyY)
+        local targetCFrame = CFrame.new(targetPos.X, safeY, targetPos.Z)
+
+        local Distance = (targetCFrame.Position - hrp.Position).Magnitude
+        if Distance <= 300 then
+            hrp.CFrame = Tween_Pos
+            return
+        end
+
+        -- Tween simples: sempre cancela o anterior e cria um novo direto para o alvo
+        if tween then
+            pcall(function() tween:Cancel() end)
+        end
+
+        local tweenService = game:GetService("TweenService")
+        local info = TweenInfo.new(Distance / TweenSpeed, Enum.EasingStyle.Linear)
+        tween = tweenService:Create(hrp, info, {CFrame = targetCFrame})
+        tween:Play()
     end)
 end
 
